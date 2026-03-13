@@ -5,7 +5,8 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.db.models import ScrapeRun, JobPosting
+from src.db.models import Base, ScrapeRun, JobPosting
+from src.db.session import get_session_factory
 
 
 async def test_create_scrape_run(db_session):
@@ -128,3 +129,22 @@ async def test_job_posting_dedup_constraint(db_session):
     db_session.add(posting2)
     with pytest.raises(IntegrityError):
         await db_session.commit()
+
+
+async def test_get_session_factory():
+    factory = get_session_factory("sqlite+aiosqlite:///:memory:")
+    async with factory() as session:
+        assert session is not None
+        # Verify we can execute a simple query
+        conn = await session.connection()
+        await conn.run_sync(Base.metadata.create_all)
+        run = ScrapeRun(
+            company="test",
+            status="running",
+            started_at=datetime.now(timezone.utc),
+            attempt_number=1,
+        )
+        session.add(run)
+        await session.commit()
+        result = await session.execute(select(ScrapeRun))
+        assert len(result.scalars().all()) == 1

@@ -1,4 +1,35 @@
 {% extends "base.html" %}
 {% block content %}
-<p>Placeholder</p>
+<section class="counter">
+    <p>It has been
+        <strong id="counter-text">{{ months }} month{{ 's' if months != 1 else '' }}, {{ days_remainder }} day{{ 's' if days_remainder != 1 else '' }}</strong>
+        ({{ total_days }} days) since
+        <a href="https://www.businessinsider.com/anthropic-ceo-dario-amodei-ai-replace-all-software-engineers-2025-3" target="_blank" rel="noopener">
+            Dario Amodei claimed AI would replace all software engineers</a>.
+    </p>
+</section>
+
+<section class="hero {% if is_hiring %}hero-yes{% else %}hero-no{% endif %}">
+    <h1>Are they still hiring software engineers?</h1>
+    {% if is_hiring %}
+        <p class="answer answer-yes">YES</p>
+        <p class="subtitle">{{ count }} software engineering positions found yesterday</p>
+        <button class="celebrate-btn" onclick="playCelebrate()">Click to celebrate</button>
+    {% else %}
+        <div class="siren"></div>
+        <p class="answer answer-no">NO</p>
+        <p class="warning-icon">&#9888;</p>
+        <p class="subtitle">No software engineering positions found yesterday</p>
+        <button class="alarm-btn" onclick="playAlarm()">Click to panic</button>
+    {% endif %}
+</section>
+
+<section class="chart-container">
+    <h2>Daily Software Engineering Postings (Last 30 Days)</h2>
+    <canvas id="postsChart"></canvas>
+</section>
+
+<script>
+    const dailyCounts = {{ daily_counts | tojson }};
+</script>
 {% endblock %}

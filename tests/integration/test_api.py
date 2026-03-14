@@ -40,3 +40,19 @@ async def test_health_endpoint(client):
     response = await client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+async def test_home_page_yes_state(client, db_session):
+    yesterday = date.today() - timedelta(days=1)
+    await _seed_postings(db_session, yesterday, count=3)
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "YES" in response.text
+    assert "hero-yes" in response.text
+
+
+async def test_home_page_no_state(client):
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "NO" in response.text
+    assert "hero-no" in response.text

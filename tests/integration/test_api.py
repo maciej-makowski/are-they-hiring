@@ -56,3 +56,22 @@ async def test_home_page_no_state(client):
     assert response.status_code == 200
     assert "NO" in response.text
     assert "hero-no" in response.text
+
+
+async def test_day_detail_page(client, db_session):
+    target = date.today() - timedelta(days=1)
+    await _seed_postings(db_session, target, count=3)
+    response = await client.get(f"/day/{target.isoformat()}")
+    assert response.status_code == 200
+    assert target.strftime("%B %d, %Y") in response.text
+    assert "SWE 0" in response.text
+    assert "SWE 1" in response.text
+    assert "SWE 2" in response.text
+    assert "3 posting" in response.text
+
+
+async def test_day_detail_empty(client):
+    target = date(2020, 1, 1)
+    response = await client.get(f"/day/{target.isoformat()}")
+    assert response.status_code == 200
+    assert "0 software engineering posting" in response.text

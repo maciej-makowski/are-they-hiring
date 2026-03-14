@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: are-they-hiring
+spec:
+  containers:
+    - name: db
+      image: docker.io/postgres:16
+      env:
+        - name: POSTGRES_USER
+          value: "arethey"
+        - name: POSTGRES_PASSWORD
+          value: "changeme"
+        - name: POSTGRES_DB
+          value: "arethey"
+      volumeMounts:
+        - name: db-data
+          mountPath: /var/lib/postgresql/data
+    - name: ollama
+      image: docker.io/ollama/ollama:latest
+      volumeMounts:
+        - name: ollama-models
+          mountPath: /root/.ollama
+    - name: web
+      image: localhost/are-they-hiring-web:latest
+      env:
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://arethey:changeme@localhost:5432/arethey"
+        - name: OLLAMA_HOST
+          value: "http://localhost:11434"
+      ports:
+        - containerPort: 8000
+          hostPort: 8000
+    - name: scraper
+      image: localhost/are-they-hiring-scraper:latest
+      env:
+        - name: DATABASE_URL
+          value: "postgresql+asyncpg://arethey:changeme@localhost:5432/arethey"
+        - name: OLLAMA_HOST
+          value: "http://localhost:11434"
+        - name: OLLAMA_MODEL
+          value: "tinyllama:1.1b"
+        - name: SCRAPE_SCHEDULE
+          value: "06:00,12:00,18:00"
+  volumes:
+    - name: db-data
+      persistentVolumeClaim:
+        claimName: are-they-hiring-db-data
+    - name: ollama-models
+      persistentVolumeClaim:
+        claimName: are-they-hiring-ollama-models

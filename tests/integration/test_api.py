@@ -75,3 +75,36 @@ async def test_day_detail_empty(client):
     response = await client.get(f"/day/{target.isoformat()}")
     assert response.status_code == 200
     assert "0 software engineering posting" in response.text
+
+
+async def test_scrape_status_page(client, db_session):
+    run = ScrapeRun(
+        id=uuid.uuid4(), company="anthropic", status="success",
+        started_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(timezone.utc) + timedelta(seconds=5),
+        postings_found=12, attempt_number=1,
+    )
+    db_session.add(run)
+    await db_session.commit()
+    response = await client.get("/scrapes")
+    assert response.status_code == 200
+    assert "Scrape Run History" in response.text
+    assert "anthropic" in response.text.lower()
+    assert "12" in response.text
+    assert "success" in response.text
+
+
+async def test_scrape_status_shows_errors(client, db_session):
+    run = ScrapeRun(
+        id=uuid.uuid4(), company="openai", status="failed",
+        started_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(timezone.utc) + timedelta(seconds=2),
+        error_message="Connection timed out after 30s",
+        attempt_number=1,
+    )
+    db_session.add(run)
+    await db_session.commit()
+    response = await client.get("/scrapes")
+    assert response.status_code == 200
+    assert "failed" in response.text
+    assert "Connection timed out after 30s" in response.text

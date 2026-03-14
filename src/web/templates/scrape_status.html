@@ -1,4 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
-<p>Placeholder</p>
+<a href="/" class="back-link">&larr; Back to Home</a>
+
+<h1>Scrape Run History</h1>
+
+<table class="status-table">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Company</th>
+            <th>Status</th>
+            <th>Found</th>
+            <th>Duration</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for run in runs %}
+        <tr>
+            <td>{{ run.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') if run.started_at else 'N/A' }}</td>
+            <td style="text-transform: capitalize;">{{ run.company }}</td>
+            <td>
+                {% if run.status == 'success' %}
+                    <span class="status-success">&#10003; success</span>
+                {% elif run.status == 'failed' %}
+                    <span class="status-failed">&#10007; failed</span>
+                {% else %}
+                    <span class="status-running">&#9679; {{ run.status }}</span>
+                {% endif %}
+            </td>
+            <td>{{ run.postings_found if run.postings_found is not none else '-' }}</td>
+            <td>
+                {% if run.started_at and run.finished_at %}
+                    {{ (run.finished_at - run.started_at).total_seconds() | round(1) }}s
+                {% else %}
+                    -
+                {% endif %}
+            </td>
+        </tr>
+        {% if run.error_message %}
+        <tr class="error-row" id="error-{{ loop.index }}">
+            <td colspan="5">{{ run.error_message }}</td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not runs %}
+<p>No scrape runs recorded yet.</p>
+{% endif %}
 {% endblock %}

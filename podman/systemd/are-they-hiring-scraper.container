@@ -1,0 +1,15 @@
+[Unit]
+Description=Are They Hiring - Scraper (Playwright + APScheduler)
+Requires=are-they-hiring-db.service are-they-hiring-ollama.service
+After=are-they-hiring-db.service are-they-hiring-ollama.service
+
+[Container]
+Image=localhost/are-they-hiring-scraper:latest
+Pod=are-they-hiring.pod
+Environment=DATABASE_URL=postgresql+asyncpg://arethey:changeme@localhost:5432/arethey
+Environment=OLLAMA_HOST=http://localhost:11434
+Environment=OLLAMA_MODEL=tinyllama:1.1b
+Environment=SCRAPE_SCHEDULE=06:00,12:00,18:00
+
+[Install]
+WantedBy=default.target

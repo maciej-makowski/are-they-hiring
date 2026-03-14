@@ -1,0 +1,15 @@
+[Unit]
+Description=Are They Hiring - PostgreSQL
+Requires=are-they-hiring-pod.service
+After=are-they-hiring-pod.service
+
+[Container]
+Image=docker.io/postgres:16
+Pod=are-they-hiring.pod
+Environment=POSTGRES_USER=arethey
+Environment=POSTGRES_PASSWORD=changeme
+Environment=POSTGRES_DB=arethey
+Volume=are-they-hiring-db-data:/var/lib/postgresql/data
+
+[Install]
+WantedBy=default.target

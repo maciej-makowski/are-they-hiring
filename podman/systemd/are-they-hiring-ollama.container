@@ -1,0 +1,12 @@
+[Unit]
+Description=Are They Hiring - Ollama LLM
+Requires=are-they-hiring-pod.service
+After=are-they-hiring-pod.service
+
+[Container]
+Image=docker.io/ollama/ollama:latest
+Pod=are-they-hiring.pod
+Volume=are-they-hiring-ollama-models:/root/.ollama
+
+[Install]
+WantedBy=default.target

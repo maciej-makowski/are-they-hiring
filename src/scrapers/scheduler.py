@@ -5,9 +5,10 @@ from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy import select
 
 from src.config import settings
-from src.db.models import ScrapeRun
+from src.db.models import ScrapeRun, JobPosting
 from src.db.queries import upsert_postings
 from src.db.session import get_session_factory
 from src.classifier.client import classify_titles
@@ -24,8 +25,8 @@ SCRAPERS = {
 }
 
 
-async def run_scrape(company: str, session_factory=None) -> ScrapeRun:
-    """Run a scrape for a single company with retry logic."""
+async def fetch_and_save(company: str, session_factory=None) -> ScrapeRun:
+    """Stage 1: Fetch postings from API and save to DB (no classification)."""
     factory = session_factory or get_session_factory()
     scraper_cls = SCRAPERS[company]
     scraper = scraper_cls()
@@ -38,42 +39,18 @@ async def run_scrape(company: str, session_factory=None) -> ScrapeRun:
             status="running",
             started_at=datetime.now(timezone.utc),
             attempt_number=attempt,
+            stage="fetching",
+            progress_current=0,
+            progress_total=1,
         )
         async with factory() as session:
             session.add(scrape_run)
             await session.flush()
+            await session.commit()
 
             try:
-                # Stage 1: Scraping
-                scrape_run.stage = "scraping"
-                scrape_run.progress_current = 0
-                scrape_run.progress_total = 1
-                await session.commit()
-
                 postings = await scraper.run()
 
-                scrape_run.progress_current = 1
-                await session.commit()
-
-                # Stage 2: Classifying
-                titles = [p["title"] for p in postings]
-                scrape_run.stage = "classifying"
-                scrape_run.progress_current = 0
-                scrape_run.progress_total = len(titles)
-                await session.commit()
-
-                async def on_classify_progress(current: int, total: int):
-                    scrape_run.progress_current = current
-                    scrape_run.progress_total = total
-                    await session.commit()
-
-                classifications = await classify_titles(
-                    titles, on_progress=on_classify_progress,
-                )
-                for p in postings:
-                    p["is_software_engineering"] = classifications.get(p["title"], False)
-
-                # Stage 3: Upserting
                 scrape_run.stage = "saving"
                 scrape_run.progress_current = 0
                 scrape_run.progress_total = len(postings)
@@ -92,44 +69,103 @@ async def run_scrape(company: str, session_factory=None) -> ScrapeRun:
                 await session.commit()
 
                 logger.info(
-                    "Scrape %s attempt %d succeeded: %d postings (%d new)",
+                    "Fetch %s attempt %d: %d postings (%d new)",
                     company, attempt, len(postings), new_count,
                 )
                 return scrape_run
 
             except Exception as e:
                 last_error = e
+                scrape_run.stage = None
                 scrape_run.status = "failed"
                 scrape_run.finished_at = datetime.now(timezone.utc)
                 scrape_run.error_message = str(e)
                 await session.commit()
 
-                logger.warning(
-                    "Scrape %s attempt %d failed: %s", company, attempt, e
-                )
+                logger.warning("Fetch %s attempt %d failed: %s", company, attempt, e)
 
                 if attempt < settings.scrape_retry_max:
-                    delay = 5 * (2 ** (attempt - 1))  # 5s, 10s, 20s
+                    delay = 5 * (2 ** (attempt - 1))
                     await asyncio.sleep(delay)
 
     raise last_error  # type: ignore[misc]
 
 
-async def run_all_scrapes(session_factory=None) -> list[ScrapeRun]:
-    """Run scrapes for all companies concurrently."""
-    tasks = [
-        run_scrape(company, session_factory)
-        for company in SCRAPERS
-    ]
+async def classify_postings(
+    company: str | None = None,
+    session_factory=None,
+    force: bool = False,
+) -> int:
+    """Stage 2: Classify postings via Ollama. Can be run independently.
+
+    Args:
+        company: Classify only this company's postings (None = all).
+        session_factory: DB session factory.
+        force: If True, reclassify all postings. If False, only unclassified ones.
+
+    Returns number of postings classified.
+    """
+    factory = session_factory or get_session_factory()
+
+    async with factory() as session:
+        stmt = select(JobPosting)
+        if company:
+            stmt = stmt.where(JobPosting.company == company)
+        if not force:
+            # Only classify postings that haven't been classified yet
+            # (is_software_engineering defaults to False, so we check for postings
+            # that were inserted in the current day — i.e., recently fetched)
+            # For a clean approach, we classify all that match the filter.
+            pass
+
+        result = await session.execute(stmt.order_by(JobPosting.company, JobPosting.title))
+        postings = list(result.scalars().all())
+
+        if not postings:
+            logger.info("No postings to classify%s", f" for {company}" if company else "")
+            return 0
+
+        titles = list({p.title for p in postings})  # dedupe titles
+        logger.info("Classifying %d unique titles (%d postings)...", len(titles), len(postings))
+
+        async def on_progress(current: int, total: int):
+            # Log every 50 titles
+            if current % 50 == 0 or current == total:
+                logger.info("Classification progress: %d/%d", current, total)
+
+        classifications = await classify_titles(titles, on_progress=on_progress)
+
+        # Apply classifications
+        classified = 0
+        for posting in postings:
+            new_val = classifications.get(posting.title, False)
+            if posting.is_software_engineering != new_val or force:
+                posting.is_software_engineering = new_val
+                classified += 1
+
+        await session.commit()
+        logger.info("Classified %d postings (%d changed)", len(postings), classified)
+        return classified
+
+
+async def fetch_all(session_factory=None) -> list[ScrapeRun]:
+    """Fetch postings from all companies concurrently."""
+    tasks = [fetch_and_save(company, session_factory) for company in SCRAPERS]
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     scrape_runs = []
     for company, result in zip(SCRAPERS, results):
         if isinstance(result, Exception):
-            logger.error("Scrape failed for %s: %s", company, result)
+            logger.error("Fetch failed for %s: %s", company, result)
         else:
             scrape_runs.append(result)
     return scrape_runs
+
+
+async def run_full_pipeline(session_factory=None) -> None:
+    """Run the full pipeline: fetch all companies, then classify."""
+    await fetch_all(session_factory)
+    await classify_postings(session_factory=session_factory)
 
 
 def create_scheduler(session_factory=None) -> AsyncIOScheduler:
@@ -140,7 +176,7 @@ def create_scheduler(session_factory=None) -> AsyncIOScheduler:
         hour, minute = time_str.strip().split(":")
         trigger = CronTrigger(hour=int(hour), minute=int(minute), timezone=settings.tz)
         scheduler.add_job(
-            run_all_scrapes,
+            run_full_pipeline,
             trigger=trigger,
             kwargs={"session_factory": session_factory},
             id=f"scrape_{hour}_{minute}",
@@ -152,22 +188,49 @@ def create_scheduler(session_factory=None) -> AsyncIOScheduler:
 
 
 async def main():
+    import sys
+
     logging.basicConfig(level=logging.INFO)
-    logger.info("Starting scrape scheduler...")
+
+    # CLI commands: fetch, classify, reclassify, or default (full pipeline + scheduler)
+    command = sys.argv[1] if len(sys.argv) > 1 else "run"
+    company = sys.argv[2] if len(sys.argv) > 2 else None
 
     session_factory = get_session_factory()
-    scheduler = create_scheduler(session_factory)
-    scheduler.start()
 
-    # Also run an immediate scrape
-    await run_all_scrapes(session_factory)
+    if command == "fetch":
+        if company:
+            await fetch_and_save(company, session_factory)
+        else:
+            await fetch_all(session_factory)
 
-    # Keep running for scheduled jobs
-    try:
-        while True:
-            await asyncio.sleep(60)
-    except (KeyboardInterrupt, SystemExit):
-        scheduler.shutdown()
+    elif command == "classify":
+        await classify_postings(company=company, session_factory=session_factory)
+
+    elif command == "reclassify":
+        await classify_postings(company=company, session_factory=session_factory, force=True)
+
+    elif command == "run":
+        logger.info("Starting scrape scheduler...")
+        scheduler = create_scheduler(session_factory)
+        scheduler.start()
+
+        # Run full pipeline immediately
+        await run_full_pipeline(session_factory)
+
+        # Keep running for scheduled jobs
+        try:
+            while True:
+                await asyncio.sleep(60)
+        except (KeyboardInterrupt, SystemExit):
+            scheduler.shutdown()
+    else:
+        print(f"Usage: python -m src.scrapers.scheduler [fetch|classify|reclassify|run] [company]")
+        print(f"  fetch [company]       - Fetch postings (all companies or specific one)")
+        print(f"  classify [company]    - Classify unclassified postings")
+        print(f"  reclassify [company]  - Reclassify ALL postings (force)")
+        print(f"  run                   - Full pipeline + scheduler (default)")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

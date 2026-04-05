@@ -3,10 +3,11 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from datetime import datetime, timezone
 
-from src.scrapers.scheduler import run_scrape, SCRAPERS
+from src.scrapers.scheduler import fetch_and_save, classify_postings, SCRAPERS
 from src.scrapers.base import BaseScraper
-from src.db.models import Base, ScrapeRun
+from src.db.models import Base, ScrapeRun, JobPosting
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 
@@ -48,26 +49,28 @@ async def session_factory():
 
 
 @pytest.mark.asyncio
-async def test_run_scrape_success(session_factory):
-    mock_classify = AsyncMock(return_value={
-        "Software Engineer": True,
-        "Product Manager": False,
-    })
-
-    with patch.dict(SCRAPERS, {"fake": FakeScraper}), \
-         patch("src.scrapers.scheduler.classify_titles", mock_classify):
-        result = await run_scrape("fake", session_factory)
+async def test_fetch_and_save_success(session_factory):
+    with patch.dict(SCRAPERS, {"fake": FakeScraper}):
+        result = await fetch_and_save("fake", session_factory)
 
     assert result.status == "success"
     assert result.company == "fake"
     assert result.postings_found == 2
     assert result.attempt_number == 1
     assert result.finished_at is not None
-    mock_classify.assert_called_once()
+    assert result.stage is None  # cleared after completion
+
+    # Verify postings were saved
+    async with session_factory() as session:
+        res = await session.execute(select(JobPosting).where(JobPosting.company == "fake"))
+        postings = list(res.scalars().all())
+    assert len(postings) == 2
+    # Postings should not be classified yet
+    assert all(p.is_software_engineering is False for p in postings)
 
 
 @pytest.mark.asyncio
-async def test_run_scrape_failure_retries(session_factory):
+async def test_fetch_failure_retries(session_factory):
     FailingScraper.call_count = 0
 
     with patch.dict(SCRAPERS, {"failing": FailingScraper}), \
@@ -76,21 +79,73 @@ async def test_run_scrape_failure_retries(session_factory):
         mock_settings.scrape_retry_max = 3
 
         with pytest.raises(RuntimeError, match="Scrape failed!"):
-            await run_scrape("failing", session_factory)
+            await fetch_and_save("failing", session_factory)
 
     assert FailingScraper.call_count == 3
 
 
 @pytest.mark.asyncio
-async def test_run_scrape_classifies_titles(session_factory):
+async def test_classify_postings(session_factory):
+    # First, fetch and save
+    with patch.dict(SCRAPERS, {"fake": FakeScraper}):
+        await fetch_and_save("fake", session_factory)
+
+    # Then classify separately
     mock_classify = AsyncMock(return_value={
         "Software Engineer": True,
         "Product Manager": False,
     })
 
-    with patch.dict(SCRAPERS, {"fake": FakeScraper}), \
-         patch("src.scrapers.scheduler.classify_titles", mock_classify):
-        await run_scrape("fake", session_factory)
+    with patch("src.scrapers.scheduler.classify_titles", mock_classify):
+        count = await classify_postings(company="fake", session_factory=session_factory)
 
+    assert count == 1  # only Software Engineer changed to True
     args, kwargs = mock_classify.call_args
-    assert args[0] == ["Software Engineer", "Product Manager"]
+    assert "Software Engineer" in args[0]
+    assert "Product Manager" in args[0]
+
+    # Verify classification was applied
+    async with session_factory() as session:
+        res = await session.execute(
+            select(JobPosting).where(JobPosting.company == "fake").order_by(JobPosting.title)
+        )
+        postings = list(res.scalars().all())
+    pm = next(p for p in postings if p.title == "Product Manager")
+    swe = next(p for p in postings if p.title == "Software Engineer")
+    assert swe.is_software_engineering is True
+    assert pm.is_software_engineering is False
+
+
+@pytest.mark.asyncio
+async def test_reclassify_postings(session_factory):
+    # Fetch and save
+    with patch.dict(SCRAPERS, {"fake": FakeScraper}):
+        await fetch_and_save("fake", session_factory)
+
+    # Classify once
+    mock_classify = AsyncMock(return_value={
+        "Software Engineer": True,
+        "Product Manager": False,
+    })
+    with patch("src.scrapers.scheduler.classify_titles", mock_classify):
+        await classify_postings(company="fake", session_factory=session_factory)
+
+    # Reclassify with different results (force=True)
+    mock_reclassify = AsyncMock(return_value={
+        "Software Engineer": False,
+        "Product Manager": True,
+    })
+    with patch("src.scrapers.scheduler.classify_titles", mock_reclassify):
+        count = await classify_postings(company="fake", session_factory=session_factory, force=True)
+
+    assert count == 2  # both changed
+
+    async with session_factory() as session:
+        res = await session.execute(
+            select(JobPosting).where(JobPosting.company == "fake").order_by(JobPosting.title)
+        )
+        postings = list(res.scalars().all())
+    pm = next(p for p in postings if p.title == "Product Manager")
+    swe = next(p for p in postings if p.title == "Software Engineer")
+    assert swe.is_software_engineering is False
+    assert pm.is_software_engineering is True

@@ -5,7 +5,7 @@ import httpx
 from src.config import settings
 
 PROMPT_TEMPLATE = (
-    "Given this job title: \"{title}\"\n"
+    'Given this job title: "{title}"\n'
     "Is this a software engineering role? This includes roles like software engineer, "
     "backend/frontend/fullstack developer, SRE, platform engineer, infrastructure "
     "engineer, DevOps engineer, and similar hands-on coding roles. "

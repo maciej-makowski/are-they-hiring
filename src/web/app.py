@@ -1,14 +1,13 @@
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Depends
+from fastapi import Depends, FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.config import settings
+from src.db.queries import get_daily_counts, get_postings_for_date, get_recent_scrape_runs, get_todays_scrape_summary
 from src.db.session import get_session_factory
-from src.db.queries import get_daily_counts, get_postings_for_date, get_yesterday_count, get_recent_scrape_runs, get_todays_scrape_summary
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -58,16 +57,19 @@ def create_app(db_session_override=None) -> FastAPI:
         delta = today - CLAIM_EPOCH
         months = delta.days // 30
         days_r = delta.days % 30
-        return templates.TemplateResponse("home.html", {
-            "request": request,
-            "state": state,
-            "count": summary["posting_count"],
-            "daily_counts": daily_counts,
-            "months": months,
-            "days_remainder": days_r,
-            "total_days": delta.days,
-            "scrape_summary": summary,
-        })
+        return templates.TemplateResponse(
+            "home.html",
+            {
+                "request": request,
+                "state": state,
+                "count": summary["posting_count"],
+                "daily_counts": daily_counts,
+                "months": months,
+                "days_remainder": days_r,
+                "total_days": delta.days,
+                "scrape_summary": summary,
+            },
+        )
 
     @app.get("/day/{target_date}")
     async def day_detail(request: Request, target_date: str, session: AsyncSession = Depends(get_session)):
@@ -76,10 +78,16 @@ def create_app(db_session_override=None) -> FastAPI:
         by_company: dict[str, list] = {}
         for p in postings:
             by_company.setdefault(p.company, []).append(p)
-        return templates.TemplateResponse("day_detail.html", {
-            "request": request, "target_date": parsed_date,
-            "postings": postings, "by_company": by_company, "total": len(postings),
-        })
+        return templates.TemplateResponse(
+            "day_detail.html",
+            {
+                "request": request,
+                "target_date": parsed_date,
+                "postings": postings,
+                "by_company": by_company,
+                "total": len(postings),
+            },
+        )
 
     @app.get("/scrapes")
     async def scrape_status(request: Request, session: AsyncSession = Depends(get_session)):

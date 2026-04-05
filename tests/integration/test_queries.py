@@ -1,6 +1,5 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
-from unittest.mock import patch
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -19,7 +18,7 @@ async def _create_scrape_run(session, company="anthropic"):
         id=uuid.uuid4(),
         company=company,
         status="completed",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         attempt_number=1,
     )
     session.add(run)
@@ -256,7 +255,7 @@ async def test_get_recent_scrape_runs(db_session):
             id=uuid.uuid4(),
             company="anthropic",
             status="completed",
-            started_at=datetime(2025, 1, 1, i, 0, 0, tzinfo=timezone.utc),
+            started_at=datetime(2025, 1, 1, i, 0, 0, tzinfo=UTC),
             attempt_number=1,
         )
         db_session.add(run)

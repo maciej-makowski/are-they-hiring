@@ -24,12 +24,35 @@ dev = [
     "pytest-httpx>=0.34",
     "aiosqlite>=0.20",
     "httpx>=0.28",
+    "ruff>=0.15",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort (import sorting)
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+]
+ignore = [
+    "E712",  # SQLAlchemy requires == True/False for query filters
+    "B008",  # FastAPI Depends() in function defaults is idiomatic
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src"]

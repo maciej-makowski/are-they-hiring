@@ -1,14 +1,12 @@
-import uuid
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from datetime import datetime, timezone
-
-from src.scrapers.scheduler import fetch_and_save, classify_postings, SCRAPERS
-from src.scrapers.base import BaseScraper
-from src.db.models import Base, ScrapeRun, JobPosting
-
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+from src.db.models import Base, JobPosting
+from src.scrapers.base import BaseScraper
+from src.scrapers.scheduler import SCRAPERS, classify_postings, fetch_and_save
 
 
 class FakeScraper(BaseScraper):
@@ -73,9 +71,11 @@ async def test_fetch_and_save_success(session_factory):
 async def test_fetch_failure_retries(session_factory):
     FailingScraper.call_count = 0
 
-    with patch.dict(SCRAPERS, {"failing": FailingScraper}), \
-         patch("src.scrapers.scheduler.settings") as mock_settings, \
-         patch("src.scrapers.scheduler.asyncio.sleep", new_callable=AsyncMock):
+    with (
+        patch.dict(SCRAPERS, {"failing": FailingScraper}),
+        patch("src.scrapers.scheduler.settings") as mock_settings,
+        patch("src.scrapers.scheduler.asyncio.sleep", new_callable=AsyncMock),
+    ):
         mock_settings.scrape_retry_max = 3
 
         with pytest.raises(RuntimeError, match="Scrape failed!"):
@@ -91,10 +91,12 @@ async def test_classify_postings(session_factory):
         await fetch_and_save("fake", session_factory)
 
     # Then classify separately
-    mock_classify = AsyncMock(return_value={
-        "Software Engineer": True,
-        "Product Manager": False,
-    })
+    mock_classify = AsyncMock(
+        return_value={
+            "Software Engineer": True,
+            "Product Manager": False,
+        }
+    )
 
     with patch("src.scrapers.scheduler.classify_titles", mock_classify):
         count = await classify_postings(company="fake", session_factory=session_factory)
@@ -106,9 +108,7 @@ async def test_classify_postings(session_factory):
 
     # Verify classification was applied
     async with session_factory() as session:
-        res = await session.execute(
-            select(JobPosting).where(JobPosting.company == "fake").order_by(JobPosting.title)
-        )
+        res = await session.execute(select(JobPosting).where(JobPosting.company == "fake").order_by(JobPosting.title))
         postings = list(res.scalars().all())
     pm = next(p for p in postings if p.title == "Product Manager")
     swe = next(p for p in postings if p.title == "Software Engineer")
@@ -123,27 +123,29 @@ async def test_reclassify_postings(session_factory):
         await fetch_and_save("fake", session_factory)
 
     # Classify once
-    mock_classify = AsyncMock(return_value={
-        "Software Engineer": True,
-        "Product Manager": False,
-    })
+    mock_classify = AsyncMock(
+        return_value={
+            "Software Engineer": True,
+            "Product Manager": False,
+        }
+    )
     with patch("src.scrapers.scheduler.classify_titles", mock_classify):
         await classify_postings(company="fake", session_factory=session_factory)
 
     # Reclassify with different results (force=True)
-    mock_reclassify = AsyncMock(return_value={
-        "Software Engineer": False,
-        "Product Manager": True,
-    })
+    mock_reclassify = AsyncMock(
+        return_value={
+            "Software Engineer": False,
+            "Product Manager": True,
+        }
+    )
     with patch("src.scrapers.scheduler.classify_titles", mock_reclassify):
         count = await classify_postings(company="fake", session_factory=session_factory, force=True)
 
     assert count == 2  # both changed
 
     async with session_factory() as session:
-        res = await session.execute(
-            select(JobPosting).where(JobPosting.company == "fake").order_by(JobPosting.title)
-        )
+        res = await session.execute(select(JobPosting).where(JobPosting.company == "fake").order_by(JobPosting.title))
         postings = list(res.scalars().all())
     pm = next(p for p in postings if p.title == "Product Manager")
     swe = next(p for p in postings if p.title == "Software Engineer")

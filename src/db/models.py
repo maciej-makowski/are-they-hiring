@@ -1,6 +1,7 @@
 import uuid
-from datetime import date, datetime, timezone
-from sqlalchemy import Boolean, Date, DateTime, Integer, String, Text, ForeignKey, UniqueConstraint
+from datetime import date, datetime
+
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -21,7 +22,7 @@ class ScrapeRun(Base):
     stage: Mapped[str | None] = mapped_column(String(30), nullable=True)  # scraping/classifying/upserting
     progress_current: Mapped[int | None] = mapped_column(Integer, nullable=True)
     progress_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    postings: Mapped[list["JobPosting"]] = relationship(back_populates="scrape_run")
+    postings: Mapped[list[JobPosting]] = relationship(back_populates="scrape_run")
 
 
 class JobPosting(Base):
@@ -37,4 +38,4 @@ class JobPosting(Base):
     last_seen_date: Mapped[date] = mapped_column(Date)
     is_software_engineering: Mapped[bool] = mapped_column(Boolean, default=False)
     classified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    scrape_run: Mapped["ScrapeRun"] = relationship(back_populates="postings")
+    scrape_run: Mapped[ScrapeRun] = relationship(back_populates="postings")

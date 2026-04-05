@@ -1,5 +1,5 @@
 """Tests for DeepMind scraper (Greenhouse API)."""
-import pytest
+
 from src.scrapers.deepmind import DeepMindScraper
 
 

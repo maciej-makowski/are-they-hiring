@@ -1,5 +1,5 @@
 """Tests for Anthropic scraper (Greenhouse API)."""
-import pytest
+
 from src.scrapers.anthropic import AnthropicScraper
 
 

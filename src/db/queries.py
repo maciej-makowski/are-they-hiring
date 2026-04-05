@@ -1,7 +1,7 @@
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import JobPosting, ScrapeRun
@@ -116,9 +116,7 @@ async def get_recent_scrape_runs(
     limit: int = 50,
 ) -> list[ScrapeRun]:
     """Get the most recent scrape runs, ordered by started_at descending."""
-    result = await session.execute(
-        select(ScrapeRun).order_by(ScrapeRun.started_at.desc()).limit(limit)
-    )
+    result = await session.execute(select(ScrapeRun).order_by(ScrapeRun.started_at.desc()).limit(limit))
     return list(result.scalars().all())
 
 
@@ -132,7 +130,7 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
       - total_companies: 3 (anthropic, openai, deepmind)
       - has_postings: whether any successful scrape found SWE postings
     """
-    today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc)
+    today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=UTC)
     companies = ["anthropic", "openai", "deepmind"]
 
     succeeded = 0

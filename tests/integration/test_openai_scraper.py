@@ -1,5 +1,5 @@
 """Tests for OpenAI scraper (Ashby API)."""
-import pytest
+
 from src.scrapers.openai_scraper import OpenAIScraper
 
 

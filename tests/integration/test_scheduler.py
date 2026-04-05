@@ -92,4 +92,5 @@ async def test_run_scrape_classifies_titles(session_factory):
          patch("src.scrapers.scheduler.classify_titles", mock_classify):
         await run_scrape("fake", session_factory)
 
-    mock_classify.assert_called_once_with(["Software Engineer", "Product Manager"])
+    args, kwargs = mock_classify.call_args
+    assert args[0] == ["Software Engineer", "Product Manager"]

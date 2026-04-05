@@ -10,6 +10,7 @@
             <th>Time</th>
             <th>Company</th>
             <th>Status</th>
+            <th>Stage</th>
             <th>Found</th>
             <th>Duration</th>
         </tr>
@@ -24,22 +25,39 @@
                     <span class="status-success">&#10003; success</span>
                 {% elif run.status == 'failed' %}
                     <span class="status-failed">&#10007; failed</span>
+                {% elif run.status == 'running' %}
+                    <span class="status-running">&#9203; running</span>
                 {% else %}
-                    <span class="status-running">&#9679; {{ run.status }}</span>
+                    <span>{{ run.status }}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if run.stage %}
+                    <span class="stage-label">{{ run.stage }}</span>
+                    {% if run.progress_total and run.progress_total > 0 %}
+                        <div class="progress-bar">
+                            <div class="progress-fill" style="width: {{ (run.progress_current or 0) / run.progress_total * 100 }}%"></div>
+                        </div>
+                        <span class="progress-text">{{ run.progress_current or 0 }}/{{ run.progress_total }}</span>
+                    {% endif %}
+                {% else %}
+                    -
                 {% endif %}
             </td>
             <td>{{ run.postings_found if run.postings_found is not none else '-' }}</td>
             <td>
                 {% if run.started_at and run.finished_at %}
                     {{ (run.finished_at - run.started_at).total_seconds() | round(1) }}s
+                {% elif run.status == 'running' %}
+                    ...
                 {% else %}
                     -
                 {% endif %}
             </td>
         </tr>
         {% if run.error_message %}
-        <tr class="error-row" id="error-{{ loop.index }}">
-            <td colspan="5">{{ run.error_message }}</td>
+        <tr class="error-row">
+            <td colspan="6">{{ run.error_message }}</td>
         </tr>
         {% endif %}
         {% endfor %}
@@ -49,4 +67,12 @@
 {% if not runs %}
 <p>No scrape runs recorded yet.</p>
 {% endif %}
+
+<script>
+    // Auto-refresh while any runs are in progress
+    const hasRunning = {{ 'true' if runs | selectattr('status', 'equalto', 'running') | list else 'false' }};
+    if (hasRunning) {
+        setTimeout(() => location.reload(), 5000);
+    }
+</script>
 {% endblock %}

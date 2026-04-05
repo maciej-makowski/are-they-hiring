@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.db.session import get_session_factory
-from src.db.queries import get_daily_counts, get_postings_for_date, get_yesterday_count, get_recent_scrape_runs
+from src.db.queries import get_daily_counts, get_postings_for_date, get_yesterday_count, get_recent_scrape_runs, get_todays_scrape_summary
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 STATIC_DIR = Path(__file__).parent / "static"
@@ -40,17 +40,33 @@ def create_app(db_session_override=None) -> FastAPI:
     @app.get("/")
     async def home(request: Request, session: AsyncSession = Depends(get_session)):
         today = date.today()
-        count = await get_yesterday_count(session)
+        summary = await get_todays_scrape_summary(session)
         raw_counts = await get_daily_counts(session)
         daily_counts = [{"date": d["date"].isoformat(), "count": d["count"]} for d in raw_counts]
-        is_hiring = count > 0
+
+        # Determine display state:
+        # "yes"     - at least one scraper finished and found SWE postings
+        # "no"      - at least 2/3 scrapers succeeded and all returned 0
+        # "unsure"  - scrapers still running or not enough data
+        if summary["has_postings"]:
+            state = "yes"
+        elif summary["succeeded"] >= 2 and not summary["has_postings"]:
+            state = "no"
+        else:
+            state = "unsure"
+
         delta = today - CLAIM_EPOCH
         months = delta.days // 30
         days_r = delta.days % 30
         return templates.TemplateResponse("home.html", {
-            "request": request, "is_hiring": is_hiring, "count": count,
-            "daily_counts": daily_counts, "months": months,
-            "days_remainder": days_r, "total_days": delta.days,
+            "request": request,
+            "state": state,
+            "count": summary["posting_count"],
+            "daily_counts": daily_counts,
+            "months": months,
+            "days_remainder": days_r,
+            "total_days": delta.days,
+            "scrape_summary": summary,
         })
 
     @app.get("/day/{target_date}")

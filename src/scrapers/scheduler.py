@@ -44,18 +44,48 @@ async def run_scrape(company: str, session_factory=None) -> ScrapeRun:
             await session.flush()
 
             try:
+                # Stage 1: Scraping
+                scrape_run.stage = "scraping"
+                scrape_run.progress_current = 0
+                scrape_run.progress_total = 1
+                await session.commit()
+
                 postings = await scraper.run()
 
-                # Classify titles
+                scrape_run.progress_current = 1
+                await session.commit()
+
+                # Stage 2: Classifying
                 titles = [p["title"] for p in postings]
-                classifications = await classify_titles(titles)
+                scrape_run.stage = "classifying"
+                scrape_run.progress_current = 0
+                scrape_run.progress_total = len(titles)
+                await session.commit()
+
+                async def on_classify_progress(current: int, total: int):
+                    scrape_run.progress_current = current
+                    scrape_run.progress_total = total
+                    await session.commit()
+
+                classifications = await classify_titles(
+                    titles, on_progress=on_classify_progress,
+                )
                 for p in postings:
                     p["is_software_engineering"] = classifications.get(p["title"], False)
+
+                # Stage 3: Upserting
+                scrape_run.stage = "saving"
+                scrape_run.progress_current = 0
+                scrape_run.progress_total = len(postings)
+                await session.commit()
 
                 new_count = await upsert_postings(
                     session, scrape_run.id, company, postings
                 )
 
+                scrape_run.stage = None
+                scrape_run.progress_current = None
+                scrape_run.progress_total = None
                 scrape_run.status = "success"
                 scrape_run.finished_at = datetime.now(timezone.utc)
                 scrape_run.postings_found = len(postings)

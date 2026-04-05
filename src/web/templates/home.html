@@ -9,18 +9,30 @@
     </p>
 </section>
 
-<section class="hero {% if is_hiring %}hero-yes{% else %}hero-no{% endif %}">
+<section class="hero hero-{{ state }}">
     <h1>Are they still hiring software engineers?</h1>
-    {% if is_hiring %}
+    {% if state == "yes" %}
         <p class="answer answer-yes">YES</p>
-        <p class="subtitle">{{ count }} software engineering positions found yesterday</p>
+        <p class="subtitle">{{ count }} software engineering positions found</p>
         <button class="celebrate-btn" onclick="playCelebrate()">Click to celebrate</button>
-    {% else %}
+    {% elif state == "no" %}
         <div class="siren"></div>
         <p class="answer answer-no">NO</p>
         <p class="warning-icon">&#9888;</p>
-        <p class="subtitle">No software engineering positions found yesterday</p>
+        <p class="subtitle">No software engineering positions found</p>
         <button class="alarm-btn" onclick="playAlarm()">Click to panic</button>
+    {% else %}
+        <p class="answer answer-unsure">&#8230;</p>
+        <p class="subtitle unsure-subtitle">Unsure yet, still checking</p>
+        <div class="scrape-progress-summary">
+            <span>{{ scrape_summary.succeeded }}/{{ scrape_summary.total_companies }} scrapers finished</span>
+            {% if scrape_summary.running > 0 %}
+                <span class="status-running">&bull; {{ scrape_summary.running }} running</span>
+            {% endif %}
+            {% if scrape_summary.failed > 0 %}
+                <span class="status-failed">&bull; {{ scrape_summary.failed }} failed</span>
+            {% endif %}
+        </div>
     {% endif %}
 </section>
 
@@ -28,6 +40,10 @@
     <h2>Daily Software Engineering Postings (Last 30 Days)</h2>
     <canvas id="postsChart"></canvas>
 </section>
+
+{% if state == "unsure" %}
+<script>setTimeout(() => location.reload(), 10000);</script>
+{% endif %}
 
 <script>
     const dailyCounts = {{ daily_counts | tojson }};

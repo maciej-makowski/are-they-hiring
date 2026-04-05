@@ -51,7 +51,24 @@ async def test_home_page_yes_state(client, db_session):
     assert "hero-yes" in response.text
 
 
-async def test_home_page_no_state(client):
+async def test_home_page_unsure_state(client):
+    """With no scrape runs, state should be 'unsure' not 'NO'."""
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "Unsure" in response.text
+    assert "hero-unsure" in response.text
+
+
+async def test_home_page_no_state(client, db_session):
+    """With 2+ successful scrapers returning 0 postings, state should be 'NO'."""
+    for company in ["anthropic", "openai"]:
+        run = ScrapeRun(
+            id=uuid.uuid4(), company=company, status="success",
+            started_at=datetime.now(timezone.utc), attempt_number=1,
+            postings_found=0,
+        )
+        db_session.add(run)
+    await db_session.commit()
     response = await client.get("/")
     assert response.status_code == 200
     assert "NO" in response.text

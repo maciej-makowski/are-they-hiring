@@ -120,3 +120,50 @@ async def get_recent_scrape_runs(
         select(ScrapeRun).order_by(ScrapeRun.started_at.desc()).limit(limit)
     )
     return list(result.scalars().all())
+
+
+async def get_todays_scrape_summary(session: AsyncSession) -> dict:
+    """Get summary of today's scrape runs for determining home page state.
+
+    Returns dict with:
+      - succeeded: number of companies with successful scrapes today
+      - running: number of companies with running scrapes
+      - failed: number of companies with only failed scrapes today
+      - total_companies: 3 (anthropic, openai, deepmind)
+      - has_postings: whether any successful scrape found SWE postings
+    """
+    today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=timezone.utc)
+    companies = ["anthropic", "openai", "deepmind"]
+
+    succeeded = 0
+    running = 0
+    failed = 0
+
+    for company in companies:
+        # Get the latest run for this company today
+        result = await session.execute(
+            select(ScrapeRun)
+            .where(ScrapeRun.company == company, ScrapeRun.started_at >= today_start)
+            .order_by(ScrapeRun.started_at.desc())
+            .limit(1)
+        )
+        latest = result.scalar_one_or_none()
+        if latest is None:
+            pass  # no run today — counts as neither
+        elif latest.status == "success":
+            succeeded += 1
+        elif latest.status == "running":
+            running += 1
+        else:
+            failed += 1
+
+    count = await get_yesterday_count(session)
+
+    return {
+        "succeeded": succeeded,
+        "running": running,
+        "failed": failed,
+        "total_companies": len(companies),
+        "has_postings": count > 0,
+        "posting_count": count,
+    }

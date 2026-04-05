@@ -18,6 +18,9 @@ class ScrapeRun(Base):
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     postings_found: Mapped[int | None] = mapped_column(Integer, nullable=True)
     attempt_number: Mapped[int] = mapped_column(Integer, default=1)
+    stage: Mapped[str | None] = mapped_column(String(30), nullable=True)  # scraping/classifying/upserting
+    progress_current: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    progress_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
     postings: Mapped[list["JobPosting"]] = relationship(back_populates="scrape_run")
 
 

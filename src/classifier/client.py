@@ -16,12 +16,14 @@ async def classify_titles(
     titles: list[str],
     ollama_host: str | None = None,
     model: str | None = None,
+    on_progress=None,
 ) -> dict[str, bool]:
     host = ollama_host or settings.ollama_host
     model_name = model or settings.ollama_model
     results: dict[str, bool] = {}
+    total = len(titles)
     async with httpx.AsyncClient(timeout=30.0) as client:
-        for title in titles:
+        for i, title in enumerate(titles):
             prompt = PROMPT_TEMPLATE.format(title=title)
             response = await client.post(
                 f"{host}/api/generate",
@@ -30,4 +32,6 @@ async def classify_titles(
             response.raise_for_status()
             answer = response.json()["response"].strip().lower()
             results[title] = answer.startswith("yes")
+            if on_progress:
+                await on_progress(i + 1, total)
     return results

@@ -232,3 +232,53 @@ main {
     border: none;
     font-size: 0.85rem;
 }
+
+/* Unsure state */
+.hero-unsure { animation: pulse-amber 3s ease-in-out infinite; }
+@keyframes pulse-amber {
+    0%, 100% { background: #111; }
+    50% { background: #1a1500; }
+}
+.answer-unsure { color: #f59e0b; font-size: 6rem; font-weight: 900; margin: 1rem 0; }
+.unsure-subtitle { color: #f59e0b; }
+.scrape-progress-summary {
+    margin-top: 1rem;
+    font-size: 0.95rem;
+    color: #888;
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* Progress tracking */
+.stage-label {
+    display: inline-block;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #f59e0b;
+    margin-bottom: 0.25rem;
+}
+
+.progress-bar {
+    width: 100%;
+    max-width: 120px;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 0.25rem 0;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #22c55e;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    font-size: 0.75rem;
+    color: #888;
+}

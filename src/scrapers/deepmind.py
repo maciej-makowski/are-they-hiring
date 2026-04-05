@@ -15,9 +15,11 @@ class DeepMindScraper(BaseScraper):
             url = job.get("absolute_url", "")
 
             if title and url:
-                postings.append({
-                    "title": title.strip(),
-                    "location": location_name.strip(),
-                    "url": url,
-                })
+                postings.append(
+                    {
+                        "title": title.strip(),
+                        "location": location_name.strip(),
+                        "url": url,
+                    }
+                )
         return postings

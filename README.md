@@ -64,6 +64,36 @@ make test-e2e
 make test-env-down
 ```
 
+### Pre-commit Hooks
+
+Lint fixes and tests run automatically before every commit:
+
+```bash
+# Install hooks (one-time, after cloning)
+uv run pre-commit install
+
+# Run manually on all files
+uv run pre-commit run --all-files
+```
+
+Hooks: ruff lint (auto-fix), ruff format, integration tests.
+
+## Linting & Formatting
+
+The project uses [ruff](https://docs.astral.sh/ruff/) for linting, formatting, and import sorting.
+
+```bash
+# Check for issues (CI runs this)
+make lint
+
+# Auto-fix everything
+make lint-fix
+```
+
+**Rules enabled:** pycodestyle, pyflakes, isort (import sorting), pyupgrade, flake8-bugbear, flake8-simplify. Config is in `pyproject.toml` under `[tool.ruff]`.
+
+**On PRs:** A GitHub Action automatically fixes lint/formatting issues and commits them back to the branch.
+
 ## Scraper CLI
 
 The scraper supports independent fetch and classify stages, useful for iterating on classification without re-fetching:

@@ -1,9 +1,11 @@
-import pytest
 import uuid
-from datetime import datetime, timezone, date, timedelta
-from httpx import AsyncClient, ASGITransport
+from datetime import UTC, date, datetime, timedelta
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+
+from src.db.models import JobPosting, ScrapeRun
 from src.web.app import create_app
-from src.db.models import ScrapeRun, JobPosting
 
 
 @pytest.fixture
@@ -20,18 +22,28 @@ async def client(app):
 
 async def _seed_postings(db_session, target_date: date, count: int = 3):
     run = ScrapeRun(
-        id=uuid.uuid4(), company="anthropic", status="success",
-        started_at=datetime.now(timezone.utc), attempt_number=1,
+        id=uuid.uuid4(),
+        company="anthropic",
+        status="success",
+        started_at=datetime.now(UTC),
+        attempt_number=1,
     )
     db_session.add(run)
     await db_session.commit()
     for i in range(count):
-        db_session.add(JobPosting(
-            id=uuid.uuid4(), scrape_run_id=run.id, company="anthropic",
-            title=f"SWE {i}", location="SF", url=f"https://anthropic.com/swe-{i}",
-            first_seen_date=target_date, last_seen_date=target_date,
-            is_software_engineering=True,
-        ))
+        db_session.add(
+            JobPosting(
+                id=uuid.uuid4(),
+                scrape_run_id=run.id,
+                company="anthropic",
+                title=f"SWE {i}",
+                location="SF",
+                url=f"https://anthropic.com/swe-{i}",
+                first_seen_date=target_date,
+                last_seen_date=target_date,
+                is_software_engineering=True,
+            )
+        )
     await db_session.commit()
     return run
 
@@ -63,8 +75,11 @@ async def test_home_page_no_state(client, db_session):
     """With 2+ successful scrapers returning 0 postings, state should be 'NO'."""
     for company in ["anthropic", "openai"]:
         run = ScrapeRun(
-            id=uuid.uuid4(), company=company, status="success",
-            started_at=datetime.now(timezone.utc), attempt_number=1,
+            id=uuid.uuid4(),
+            company=company,
+            status="success",
+            started_at=datetime.now(UTC),
+            attempt_number=1,
             postings_found=0,
         )
         db_session.add(run)
@@ -96,10 +111,13 @@ async def test_day_detail_empty(client):
 
 async def test_scrape_status_page(client, db_session):
     run = ScrapeRun(
-        id=uuid.uuid4(), company="anthropic", status="success",
-        started_at=datetime.now(timezone.utc),
-        finished_at=datetime.now(timezone.utc) + timedelta(seconds=5),
-        postings_found=12, attempt_number=1,
+        id=uuid.uuid4(),
+        company="anthropic",
+        status="success",
+        started_at=datetime.now(UTC),
+        finished_at=datetime.now(UTC) + timedelta(seconds=5),
+        postings_found=12,
+        attempt_number=1,
     )
     db_session.add(run)
     await db_session.commit()
@@ -113,9 +131,11 @@ async def test_scrape_status_page(client, db_session):
 
 async def test_scrape_status_shows_errors(client, db_session):
     run = ScrapeRun(
-        id=uuid.uuid4(), company="openai", status="failed",
-        started_at=datetime.now(timezone.utc),
-        finished_at=datetime.now(timezone.utc) + timedelta(seconds=2),
+        id=uuid.uuid4(),
+        company="openai",
+        status="failed",
+        started_at=datetime.now(UTC),
+        finished_at=datetime.now(UTC) + timedelta(seconds=2),
         error_message="Connection timed out after 30s",
         attempt_number=1,
     )

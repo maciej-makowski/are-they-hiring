@@ -13,9 +13,12 @@ revision:
 	uv run alembic revision --autogenerate -m "$(msg)"
 
 lint:
-	uv run python -m py_compile src/config.py
-	uv run python -m py_compile src/db/models.py
-	uv run python -m py_compile src/web/app.py
+	uv run ruff check src/ tests/
+	uv run ruff format --check src/ tests/
+
+lint-fix:
+	uv run ruff check --fix src/ tests/
+	uv run ruff format src/ tests/
 
 build:
 	podman build -f Containerfile.web -t are-they-hiring-web .

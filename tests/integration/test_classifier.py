@@ -1,4 +1,5 @@
 import pytest
+
 from src.classifier.client import classify_titles
 
 

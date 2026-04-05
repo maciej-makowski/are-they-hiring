@@ -1,20 +1,20 @@
 import asyncio
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 
+from src.classifier.client import classify_titles
 from src.config import settings
-from src.db.models import ScrapeRun, JobPosting
+from src.db.models import JobPosting, ScrapeRun
 from src.db.queries import upsert_postings
 from src.db.session import get_session_factory
-from src.classifier.client import classify_titles
 from src.scrapers.anthropic import AnthropicScraper
-from src.scrapers.openai_scraper import OpenAIScraper
 from src.scrapers.deepmind import DeepMindScraper
+from src.scrapers.openai_scraper import OpenAIScraper
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ async def fetch_and_save(company: str, session_factory=None) -> ScrapeRun:
             id=uuid.uuid4(),
             company=company,
             status="running",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             attempt_number=attempt,
             stage="fetching",
             progress_current=0,
@@ -56,21 +56,22 @@ async def fetch_and_save(company: str, session_factory=None) -> ScrapeRun:
                 scrape_run.progress_total = len(postings)
                 await session.commit()
 
-                new_count = await upsert_postings(
-                    session, scrape_run.id, company, postings
-                )
+                new_count = await upsert_postings(session, scrape_run.id, company, postings)
 
                 scrape_run.stage = None
                 scrape_run.progress_current = None
                 scrape_run.progress_total = None
                 scrape_run.status = "success"
-                scrape_run.finished_at = datetime.now(timezone.utc)
+                scrape_run.finished_at = datetime.now(UTC)
                 scrape_run.postings_found = len(postings)
                 await session.commit()
 
                 logger.info(
                     "Fetch %s attempt %d: %d postings (%d new)",
-                    company, attempt, len(postings), new_count,
+                    company,
+                    attempt,
+                    len(postings),
+                    new_count,
                 )
                 return scrape_run
 
@@ -78,7 +79,7 @@ async def fetch_and_save(company: str, session_factory=None) -> ScrapeRun:
                 last_error = e
                 scrape_run.stage = None
                 scrape_run.status = "failed"
-                scrape_run.finished_at = datetime.now(timezone.utc)
+                scrape_run.finished_at = datetime.now(UTC)
                 scrape_run.error_message = str(e)
                 await session.commit()
 
@@ -106,7 +107,7 @@ async def classify_postings(
     Returns number of postings classified.
     """
     factory = session_factory or get_session_factory()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     async with factory() as session:
         stmt = select(JobPosting)
@@ -151,7 +152,7 @@ async def fetch_all(session_factory=None) -> list[ScrapeRun]:
     results = await asyncio.gather(*tasks, return_exceptions=True)
 
     scrape_runs = []
-    for company, result in zip(SCRAPERS, results):
+    for company, result in zip(SCRAPERS, results, strict=False):
         if isinstance(result, Exception):
             logger.error("Fetch failed for %s: %s", company, result)
         else:
@@ -219,14 +220,14 @@ async def main():
         try:
             while True:
                 await asyncio.sleep(60)
-        except (KeyboardInterrupt, SystemExit):
+        except KeyboardInterrupt, SystemExit:
             scheduler.shutdown()
     else:
-        print(f"Usage: python -m src.scrapers.scheduler [fetch|classify|reclassify|run] [company]")
-        print(f"  fetch [company]       - Fetch postings (all companies or specific one)")
-        print(f"  classify [company]    - Classify unclassified postings")
-        print(f"  reclassify [company]  - Reclassify ALL postings (force)")
-        print(f"  run                   - Full pipeline + scheduler (default)")
+        print("Usage: python -m src.scrapers.scheduler [fetch|classify|reclassify|run] [company]")
+        print("  fetch [company]       - Fetch postings (all companies or specific one)")
+        print("  classify [company]    - Classify unclassified postings")
+        print("  reclassify [company]  - Reclassify ALL postings (force)")
+        print("  run                   - Full pipeline + scheduler (default)")
         sys.exit(1)
 
 

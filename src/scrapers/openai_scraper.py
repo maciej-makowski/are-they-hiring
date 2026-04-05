@@ -14,9 +14,11 @@ class OpenAIScraper(BaseScraper):
             url = job.get("jobUrl", "")
 
             if title and url:
-                postings.append({
-                    "title": title.strip(),
-                    "location": location.strip() if location else "",
-                    "url": url,
-                })
+                postings.append(
+                    {
+                        "title": title.strip(),
+                        "location": location.strip() if location else "",
+                        "url": url,
+                    }
+                )
         return postings

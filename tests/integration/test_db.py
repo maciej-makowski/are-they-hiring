@@ -1,11 +1,11 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
-from src.db.models import Base, ScrapeRun, JobPosting
+from src.db.models import Base, JobPosting, ScrapeRun
 from src.db.session import get_session_factory
 
 
@@ -14,7 +14,7 @@ async def test_create_scrape_run(db_session):
         id=uuid.uuid4(),
         company="anthropic",
         status="running",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         attempt_number=1,
     )
     db_session.add(run)
@@ -32,7 +32,7 @@ async def test_create_job_posting(db_session):
         id=uuid.uuid4(),
         company="openai",
         status="completed",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         attempt_number=1,
     )
     db_session.add(run)
@@ -64,7 +64,7 @@ async def test_scrape_run_posting_relationship(db_session):
         id=uuid.uuid4(),
         company="deepmind",
         status="completed",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         attempt_number=1,
     )
     db_session.add(run)
@@ -84,9 +84,7 @@ async def test_scrape_run_posting_relationship(db_session):
         db_session.add(posting)
     await db_session.commit()
 
-    result = await db_session.execute(
-        select(ScrapeRun).where(ScrapeRun.id == run.id)
-    )
+    result = await db_session.execute(select(ScrapeRun).where(ScrapeRun.id == run.id))
     fetched_run = result.scalar_one()
     await db_session.refresh(fetched_run, ["postings"])
     assert len(fetched_run.postings) == 3
@@ -97,7 +95,7 @@ async def test_job_posting_dedup_constraint(db_session):
         id=uuid.uuid4(),
         company="anthropic",
         status="completed",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
         attempt_number=1,
     )
     db_session.add(run)
@@ -141,7 +139,7 @@ async def test_get_session_factory():
         run = ScrapeRun(
             company="test",
             status="running",
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             attempt_number=1,
         )
         session.add(run)

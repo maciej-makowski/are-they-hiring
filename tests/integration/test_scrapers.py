@@ -1,6 +1,8 @@
 """Tests for base scraper."""
-import pytest
+
 from unittest.mock import AsyncMock, patch
+
+import pytest
 
 from src.scrapers.base import BaseScraper
 

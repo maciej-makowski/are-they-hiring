@@ -1,0 +1,41 @@
+name: Lint & Format
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Run ruff linter (auto-fix)
+        run: uv run ruff check --fix src/ tests/
+
+      - name: Run ruff formatter
+        run: uv run ruff format src/ tests/
+
+      - name: Sort dependencies in pyproject.toml
+        run: uv run ruff check --select I --fix src/ tests/
+
+      - name: Commit fixes if any
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "style: auto-fix lint and formatting"
+          git push

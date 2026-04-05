@@ -196,13 +196,14 @@ main {
 }
 
 .company-toggle {
+    all: unset;
     display: flex;
     align-items: center;
     gap: 1rem;
     width: 100%;
+    box-sizing: border-box;
     padding: 1.25rem 1.5rem;
     background: transparent;
-    border: none;
     color: #e5e5e5;
     font-family: inherit;
     font-size: inherit;
@@ -210,8 +211,6 @@ main {
     text-align: left;
     border-radius: 0.75rem;
     transition: background 0.15s;
-    -webkit-appearance: none;
-    appearance: none;
 }
 
 .company-toggle:hover { background: #252525; }

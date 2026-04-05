@@ -171,3 +171,12 @@ Ollama (gemma2:2b, GPU) → Classification
 - **Database**: PostgreSQL with deduplication by (company, URL), first/last seen tracking
 
 See `Implementation.md` for detailed design decisions and rationale.
+
+## Next Steps
+
+- **Classification quality**: Review edge cases (e.g., "Developer Community Lead", "Finance Systems Integration Engineer") and refine the Ollama prompt or try a larger model
+- **Sound effects**: Replace empty placeholder MP3s (`src/web/static/sounds/`) with actual audio — a fanfare for YES, an alarm for NO
+- **E2E tests**: Run the Playwright E2E suite against the live dev environment (`make test-env-up && make test-e2e`)
+- **Fix Starlette deprecation**: Update `TemplateResponse(name, {request: ...})` calls to the new `TemplateResponse(request, name)` signature
+- **More companies**: Add scrapers for additional AI companies (xAI, Meta AI, etc.)
+- **Historical charts**: Improve the daily counts chart to show trends over weeks/months

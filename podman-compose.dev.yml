@@ -17,11 +17,16 @@ services:
       retries: 10
 
   ollama:
-    image: docker.io/ollama/ollama:latest
+    build:
+      context: .
+      dockerfile: Containerfile.ollama
     ports:
       - "11435:11434"
-    volumes:
-      - arethey-ollama-models:/root/.ollama
+    devices:
+      - nvidia.com/gpu=all
+    environment:
+      OLLAMA_GPU_LAYERS: "-1"
+      OLLAMA_VULKAN: "1"
 
   web:
     build:
@@ -55,4 +60,3 @@ services:
 
 volumes:
   arethey-db-data:
-  arethey-ollama-models:

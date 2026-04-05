@@ -1,0 +1,7 @@
+FROM docker.io/ollama/ollama:latest
+
+# Pre-pull the model during build so it's baked into the image
+RUN bash -c 'ollama serve &' && \
+    sleep 5 && \
+    ollama pull tinyllama:1.1b && \
+    pkill ollama || true

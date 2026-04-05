@@ -157,7 +157,20 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
         else:
             failed += 1
 
-    count = await get_yesterday_count(session)
+    # Check for SWE postings visible today OR yesterday (use the most recent data)
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    for check_date in [today, yesterday]:
+        result = await session.execute(
+            select(func.count(JobPosting.id)).where(
+                JobPosting.first_seen_date <= check_date,
+                JobPosting.last_seen_date >= check_date,
+                JobPosting.is_software_engineering == True,
+            )
+        )
+        count = result.scalar() or 0
+        if count > 0:
+            break
 
     return {
         "succeeded": succeeded,

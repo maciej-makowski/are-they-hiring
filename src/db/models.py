@@ -36,4 +36,5 @@ class JobPosting(Base):
     first_seen_date: Mapped[date] = mapped_column(Date)
     last_seen_date: Mapped[date] = mapped_column(Date)
     is_software_engineering: Mapped[bool] = mapped_column(Boolean, default=False)
+    classified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     scrape_run: Mapped["ScrapeRun"] = relationship(back_populates="postings")

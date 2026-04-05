@@ -201,16 +201,20 @@ main {
     gap: 1rem;
     width: 100%;
     padding: 1.25rem 1.5rem;
-    background: none;
+    background: transparent;
     border: none;
-    color: inherit;
+    color: #e5e5e5;
+    font-family: inherit;
+    font-size: inherit;
     cursor: pointer;
     text-align: left;
     border-radius: 0.75rem;
     transition: background 0.15s;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
-.company-toggle:hover { background: #222; }
+.company-toggle:hover { background: #252525; }
 
 .company-toggle h3 {
     font-size: 1.2rem;

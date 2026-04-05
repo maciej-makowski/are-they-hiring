@@ -106,17 +106,14 @@ async def classify_postings(
     Returns number of postings classified.
     """
     factory = session_factory or get_session_factory()
+    now = datetime.now(timezone.utc)
 
     async with factory() as session:
         stmt = select(JobPosting)
         if company:
             stmt = stmt.where(JobPosting.company == company)
         if not force:
-            # Only classify postings that haven't been classified yet
-            # (is_software_engineering defaults to False, so we check for postings
-            # that were inserted in the current day — i.e., recently fetched)
-            # For a clean approach, we classify all that match the filter.
-            pass
+            stmt = stmt.where(JobPosting.classified_at.is_(None))
 
         result = await session.execute(stmt.order_by(JobPosting.company, JobPosting.title))
         postings = list(result.scalars().all())
@@ -129,7 +126,6 @@ async def classify_postings(
         logger.info("Classifying %d unique titles (%d postings)...", len(titles), len(postings))
 
         async def on_progress(current: int, total: int):
-            # Log every 50 titles
             if current % 50 == 0 or current == total:
                 logger.info("Classification progress: %d/%d", current, total)
 
@@ -142,6 +138,7 @@ async def classify_postings(
             if posting.is_software_engineering != new_val or force:
                 posting.is_software_engineering = new_val
                 classified += 1
+            posting.classified_at = now
 
         await session.commit()
         logger.info("Classified %d postings (%d changed)", len(postings), classified)

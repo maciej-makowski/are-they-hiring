@@ -1,27 +1,24 @@
-import asyncio
 from abc import ABC, abstractmethod
-from playwright.async_api import async_playwright, Page
-from src.config import settings
+
+import httpx
 
 
 class BaseScraper(ABC):
     company: str
-    careers_url: str
+    api_url: str
 
     @abstractmethod
-    async def extract_postings(self, page: Page) -> list[dict]:
+    def parse_response(self, data: dict | list) -> list[dict]:
+        """Parse API response into list of dicts with keys: title, location, url"""
         ...
 
     async def run(self) -> list[dict]:
-        async with async_playwright() as pw:
-            browser = await pw.chromium.launch()
-            context = await browser.new_context(
-                user_agent="AreTheyHiringBot/1.0 (+https://github.com/are-they-hiring)"
+        """Fetch job listings from the company's job board API."""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                self.api_url,
+                headers={"User-Agent": "AreTheyHiringBot/1.0"},
             )
-            page = await context.new_page()
-            await page.goto(self.careers_url, wait_until="networkidle")
-            await asyncio.sleep(settings.scrape_delay_seconds)
-            postings = await self.extract_postings(page)
-            await context.close()
-            await browser.close()
-        return postings
+            response.raise_for_status()
+            data = response.json()
+        return self.parse_response(data)

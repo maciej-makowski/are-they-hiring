@@ -1,45 +1,37 @@
+"""Tests for base scraper."""
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from playwright.async_api import Page
+from unittest.mock import AsyncMock, patch
+
 from src.scrapers.base import BaseScraper
 
 
 class FakeScraper(BaseScraper):
     company = "fake"
-    careers_url = "https://fake.com/careers"
+    api_url = "https://fake.com/api/jobs"
 
-    async def extract_postings(self, page: Page) -> list[dict]:
-        return [
-            {"title": "Software Engineer", "location": "Remote", "url": "https://fake.com/jobs/1"},
-        ]
+    def parse_response(self, data):
+        return [{"title": j["name"], "location": "SF", "url": j["link"]} for j in data]
 
 
 @pytest.mark.asyncio
 async def test_base_scraper_run():
-    mock_page = AsyncMock()
-    mock_context = AsyncMock()
-    mock_context.new_page.return_value = mock_page
+    import httpx
 
-    mock_browser = AsyncMock()
-    mock_browser.new_context.return_value = mock_context
+    mock_response = httpx.Response(
+        200,
+        json=[{"name": "SWE", "link": "https://fake.com/swe-1"}],
+        request=httpx.Request("GET", "https://fake.com/api/jobs"),
+    )
 
-    mock_pw = AsyncMock()
-    mock_pw.chromium.launch.return_value = mock_browser
+    with patch("src.scrapers.base.httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
 
-    mock_pw_context = AsyncMock()
-    mock_pw_context.__aenter__ = AsyncMock(return_value=mock_pw)
-    mock_pw_context.__aexit__ = AsyncMock(return_value=False)
+        scraper = FakeScraper()
+        postings = await scraper.run()
 
-    with patch("src.scrapers.base.async_playwright", return_value=mock_pw_context):
-        with patch("src.scrapers.base.settings") as mock_settings:
-            mock_settings.scrape_delay_seconds = 0
-
-            scraper = FakeScraper()
-            result = await scraper.run()
-
-    assert len(result) == 1
-    assert result[0]["title"] == "Software Engineer"
-    mock_page.goto.assert_called_once_with("https://fake.com/careers", wait_until="networkidle")
-    mock_browser.new_context.assert_called_once()
-    mock_context.close.assert_called_once()
-    mock_browser.close.assert_called_once()
+    assert len(postings) == 1
+    assert postings[0]["title"] == "SWE"

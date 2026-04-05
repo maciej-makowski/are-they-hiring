@@ -1,0 +1,58 @@
+version: "3.8"
+services:
+  db:
+    image: docker.io/postgres:16
+    environment:
+      POSTGRES_USER: arethey
+      POSTGRES_PASSWORD: changeme
+      POSTGRES_DB: arethey
+    ports:
+      - "5433:5432"
+    volumes:
+      - arethey-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arethey"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    ports:
+      - "11435:11434"
+    volumes:
+      - arethey-ollama-models:/root/.ollama
+
+  web:
+    build:
+      context: .
+      dockerfile: Containerfile.web
+    environment:
+      DATABASE_URL: postgresql+asyncpg://arethey:changeme@db:5432/arethey
+      OLLAMA_HOST: http://ollama:11434
+      TZ: UTC
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  scraper:
+    build:
+      context: .
+      dockerfile: Containerfile.scraper
+    environment:
+      DATABASE_URL: postgresql+asyncpg://arethey:changeme@db:5432/arethey
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: tinyllama:1.1b
+      SCRAPE_SCHEDULE: "06:00,12:00,18:00"
+      SCRAPE_RETRY_MAX: "3"
+      SCRAPE_DELAY_SECONDS: "2"
+      TZ: UTC
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  arethey-db-data:
+  arethey-ollama-models:

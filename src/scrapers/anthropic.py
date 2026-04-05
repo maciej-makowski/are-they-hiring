@@ -1,32 +1,23 @@
-from playwright.async_api import Page
 from src.scrapers.base import BaseScraper
-from src.config import settings
 
 
 class AnthropicScraper(BaseScraper):
     company = "anthropic"
-    careers_url = settings.anthropic_careers_url
+    api_url = "https://boards-api.greenhouse.io/v1/boards/anthropic/jobs"
 
-    async def extract_postings(self, page: Page) -> list[dict]:
+    def parse_response(self, data: dict | list) -> list[dict]:
+        jobs = data.get("jobs", []) if isinstance(data, dict) else data
         postings = []
-        listings = page.locator('[data-testid="job-listing"]')
-        count = await listings.count()
-        for i in range(count):
-            item = listings.nth(i)
-            link = item.locator("a").first
-            title_el = item.locator("h3").first
-            location_el = item.locator(".location").first
+        for job in jobs:
+            title = job.get("title", "")
+            location = job.get("location", {})
+            location_name = location.get("name", "") if isinstance(location, dict) else str(location)
+            url = job.get("absolute_url", "")
 
-            title = await title_el.text_content() or ""
-            location = await location_el.text_content() or ""
-            href = await link.get_attribute("href") or ""
-
-            if href and not href.startswith("http"):
-                href = f"https://www.anthropic.com{href}"
-
-            postings.append({
-                "title": title.strip(),
-                "location": location.strip(),
-                "url": href,
-            })
+            if title and url:
+                postings.append({
+                    "title": title.strip(),
+                    "location": location_name.strip(),
+                    "url": url,
+                })
         return postings

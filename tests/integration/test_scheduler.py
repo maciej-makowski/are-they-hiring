@@ -12,24 +12,24 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 class FakeScraper(BaseScraper):
     company = "fake"
-    careers_url = "https://fake.com/careers"
+    api_url = "https://fake.com/api/jobs"
 
-    async def extract_postings(self, page=None) -> list[dict]:
+    def parse_response(self, data):
+        return data
+
+    async def run(self) -> list[dict]:
         return [
             {"title": "Software Engineer", "location": "Remote", "url": "https://fake.com/jobs/1"},
             {"title": "Product Manager", "location": "NYC", "url": "https://fake.com/jobs/2"},
         ]
 
-    async def run(self) -> list[dict]:
-        return await self.extract_postings()
-
 
 class FailingScraper(BaseScraper):
     company = "failing"
-    careers_url = "https://failing.com/careers"
+    api_url = "https://failing.com/api/jobs"
     call_count = 0
 
-    async def extract_postings(self, page=None) -> list[dict]:
+    def parse_response(self, data):
         return []
 
     async def run(self) -> list[dict]:

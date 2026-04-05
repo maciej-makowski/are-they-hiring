@@ -1,29 +1,22 @@
-from playwright.async_api import Page
 from src.scrapers.base import BaseScraper
-from src.config import settings
 
 
 class OpenAIScraper(BaseScraper):
     company = "openai"
-    careers_url = settings.openai_careers_url
+    api_url = "https://api.ashbyhq.com/posting-api/job-board/openai"
 
-    async def extract_postings(self, page: Page) -> list[dict]:
+    def parse_response(self, data: dict | list) -> list[dict]:
+        jobs = data.get("jobs", []) if isinstance(data, dict) else data
         postings = []
-        cards = page.locator(".job-card")
-        count = await cards.count()
-        for i in range(count):
-            item = cards.nth(i)
-            link = item.locator("a").first
-            title_el = item.locator(".job-title").first
-            location_el = item.locator(".job-location").first
+        for job in jobs:
+            title = job.get("title", "")
+            location = job.get("location", "")
+            url = job.get("jobUrl", "")
 
-            title = await title_el.text_content() or ""
-            location = await location_el.text_content() or ""
-            href = await link.get_attribute("href") or ""
-
-            postings.append({
-                "title": title.strip(),
-                "location": location.strip(),
-                "url": href,
-            })
+            if title and url:
+                postings.append({
+                    "title": title.strip(),
+                    "location": location.strip() if location else "",
+                    "url": url,
+                })
         return postings

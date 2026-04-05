@@ -1,38 +1,35 @@
-import pathlib
+"""Tests for DeepMind scraper (Greenhouse API)."""
 import pytest
-from playwright.async_api import async_playwright
 from src.scrapers.deepmind import DeepMindScraper
 
-FIXTURE_PATH = pathlib.Path(__file__).parent.parent / "fixtures" / "html_snapshots" / "deepmind_careers.html"
 
-
-@pytest.fixture
-async def browser_page():
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch()
-        page = await browser.new_page()
-        yield page
-        await browser.close()
-
-
-@pytest.mark.asyncio
-async def test_deepmind_extract_postings(browser_page):
-    html = FIXTURE_PATH.read_text()
-    await browser_page.set_content(html)
-
+def test_deepmind_parse_greenhouse_response():
     scraper = DeepMindScraper()
-    postings = await scraper.extract_postings(browser_page)
+    data = {
+        "jobs": [
+            {
+                "id": 7686685,
+                "title": "Research Engineer, Human Understanding",
+                "location": {"name": "London, UK"},
+                "absolute_url": "https://job-boards.greenhouse.io/deepmind/jobs/7686685",
+            },
+            {
+                "id": 7669433,
+                "title": "Software Engineer, Infrastructure",
+                "location": {"name": "Mountain View, California, US"},
+                "absolute_url": "https://job-boards.greenhouse.io/deepmind/jobs/7669433",
+            },
+        ]
+    }
+    postings = scraper.parse_response(data)
 
-    assert len(postings) == 3
-
-    assert postings[0]["title"] == "SRE Engineer"
+    assert len(postings) == 2
+    assert postings[0]["title"] == "Research Engineer, Human Understanding"
     assert postings[0]["location"] == "London, UK"
-    assert postings[0]["url"] == "https://deepmind.google/careers/positions/sre-engineer"
+    assert "7686685" in postings[0]["url"]
+    assert postings[1]["title"] == "Software Engineer, Infrastructure"
 
-    assert postings[1]["title"] == "Research Scientist"
-    assert postings[1]["location"] == "Mountain View, CA"
-    assert postings[1]["url"] == "https://deepmind.google/careers/positions/research-scientist"
 
-    assert postings[2]["title"] == "Platform Engineer"
-    assert postings[2]["location"] == "London, UK"
-    assert postings[2]["url"] == "https://deepmind.google/careers/positions/platform-engineer"
+def test_deepmind_parse_empty():
+    scraper = DeepMindScraper()
+    assert scraper.parse_response({"jobs": []}) == []

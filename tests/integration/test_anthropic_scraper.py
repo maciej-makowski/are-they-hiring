@@ -1,38 +1,41 @@
-import pathlib
+"""Tests for Anthropic scraper (Greenhouse API)."""
 import pytest
-from playwright.async_api import async_playwright
 from src.scrapers.anthropic import AnthropicScraper
 
-FIXTURE_PATH = pathlib.Path(__file__).parent.parent / "fixtures" / "html_snapshots" / "anthropic_careers.html"
 
-
-@pytest.fixture
-async def browser_page():
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch()
-        page = await browser.new_page()
-        yield page
-        await browser.close()
-
-
-@pytest.mark.asyncio
-async def test_anthropic_extract_postings(browser_page):
-    html = FIXTURE_PATH.read_text()
-    await browser_page.set_content(html)
-
+def test_anthropic_parse_greenhouse_response():
     scraper = AnthropicScraper()
-    postings = await scraper.extract_postings(browser_page)
+    data = {
+        "jobs": [
+            {
+                "id": 5101832008,
+                "title": "Software Engineer",
+                "location": {"name": "San Francisco, CA"},
+                "absolute_url": "https://job-boards.greenhouse.io/anthropic/jobs/5101832008",
+            },
+            {
+                "id": 5116274008,
+                "title": "Applied AI Engineer",
+                "location": {"name": "London, UK"},
+                "absolute_url": "https://job-boards.greenhouse.io/anthropic/jobs/5116274008",
+            },
+        ]
+    }
+    postings = scraper.parse_response(data)
 
-    assert len(postings) == 3
-
+    assert len(postings) == 2
     assert postings[0]["title"] == "Software Engineer"
     assert postings[0]["location"] == "San Francisco, CA"
-    assert postings[0]["url"] == "https://www.anthropic.com/careers/software-engineer"
+    assert "5101832008" in postings[0]["url"]
+    assert postings[1]["title"] == "Applied AI Engineer"
 
-    assert postings[1]["title"] == "Backend Engineer"
-    assert postings[1]["location"] == "Remote"
-    assert postings[1]["url"] == "https://www.anthropic.com/careers/backend-engineer"
 
-    assert postings[2]["title"] == "Product Manager"
-    assert postings[2]["location"] == "New York, NY"
-    assert postings[2]["url"] == "https://www.anthropic.com/careers/product-manager"
+def test_anthropic_parse_empty():
+    scraper = AnthropicScraper()
+    assert scraper.parse_response({"jobs": []}) == []
+
+
+def test_anthropic_parse_missing_fields():
+    scraper = AnthropicScraper()
+    data = {"jobs": [{"title": "", "location": {}, "absolute_url": ""}]}
+    assert scraper.parse_response(data) == []

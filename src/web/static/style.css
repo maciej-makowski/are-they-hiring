@@ -191,23 +191,55 @@ main {
 .company-card {
     background: #1a1a1a;
     border-radius: 0.75rem;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     text-align: left;
 }
 
-.company-card h3 {
+.company-toggle {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: 100%;
+    padding: 1.25rem 1.5rem;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    border-radius: 0.75rem;
+    transition: background 0.15s;
+}
+
+.company-toggle:hover { background: #222; }
+
+.company-toggle h3 {
     font-size: 1.2rem;
     color: #e5e5e5;
-    margin-bottom: 0.5rem;
+    margin: 0;
     text-transform: capitalize;
 }
 
-.company-card .count {
-    color: #aaa;
-    font-size: 0.9rem;
-    margin-bottom: 1rem;
+.company-toggle .count {
+    color: #22c55e;
+    font-size: 0.95rem;
+    font-weight: 600;
 }
+
+.company-toggle .toggle-icon {
+    margin-left: auto;
+    color: #666;
+    font-size: 0.8rem;
+    transition: transform 0.2s;
+}
+
+.company-card.expanded .toggle-icon { transform: rotate(90deg); }
+
+.company-jobs {
+    display: none;
+    padding: 0 1.5rem 1.25rem;
+}
+
+.company-card.expanded .company-jobs { display: block; }
 
 /* Status icons */
 .status-success { color: #22c55e; }

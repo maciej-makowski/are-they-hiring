@@ -7,26 +7,31 @@
 
 {% for company, jobs in by_company.items() %}
 <div class="company-card">
-    <h3>{{ company }}</h3>
-    <p class="count">{{ jobs | length }} posting{{ 's' if jobs | length != 1 else '' }}</p>
-    <table class="job-table">
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Location</th>
-                <th>Link</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for job in jobs %}
-            <tr>
-                <td>{{ job.title }}</td>
-                <td>{{ job.location }}</td>
-                <td><a href="{{ job.url }}" target="_blank" rel="noopener">View &rarr;</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <button class="company-toggle" onclick="this.parentElement.classList.toggle('expanded')">
+        <h3>{{ company | title }}</h3>
+        <span class="count">{{ jobs | length }} posting{{ 's' if jobs | length != 1 else '' }}</span>
+        <span class="toggle-icon">&#9654;</span>
+    </button>
+    <div class="company-jobs">
+        <table class="job-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Location</th>
+                    <th>Link</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in jobs %}
+                <tr>
+                    <td>{{ job.title }}</td>
+                    <td>{{ job.location }}</td>
+                    <td><a href="{{ job.url }}" target="_blank" rel="noopener">View &rarr;</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endfor %}
 

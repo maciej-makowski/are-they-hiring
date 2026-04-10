@@ -36,16 +36,30 @@
     {% endif %}
 </section>
 
-<section class="chart-container">
-    <h2>Daily Software Engineering Postings (Last 30 Days)</h2>
-    <canvas id="postsChart"></canvas>
+<section class="calendar-container">
+    <h2>Last 30 Days</h2>
+    <div class="calendar-grid">
+        {% for day in daily_counts %}
+        <a href="/day/{{ day.date }}" class="calendar-day {% if day.count > 0 %}day-green{% elif day.scraped %}day-red{% else %}day-amber{% endif %}">
+            <span class="day-date">{{ day.date[5:] }}</span>
+            <span class="day-icon">
+                {%- if day.count > 0 -%}
+                    &#10003;
+                {%- elif day.scraped -%}
+                    &#9888;
+                {%- else -%}
+                    &#63;
+                {%- endif -%}
+            </span>
+            {% if day.count > 0 %}
+            <span class="day-count">{{ day.count }}</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
 </section>
 
 {% if state == "unsure" %}
 <script>setTimeout(() => location.reload(), 10000);</script>
 {% endif %}
-
-<script>
-    const dailyCounts = {{ daily_counts | tojson }};
-</script>
 {% endblock %}

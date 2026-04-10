@@ -139,18 +139,76 @@ main {
     color: #fff;
 }
 
-/* Chart */
-.chart-container {
+/* Calendar grid */
+.calendar-container {
     background: #1a1a1a;
     border-radius: 1rem;
     padding: 2rem;
     margin-bottom: 2rem;
 }
 
-.chart-container h2 {
+.calendar-container h2 {
     font-size: 1.2rem;
     color: #ccc;
     margin-bottom: 1rem;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 0.5rem;
+}
+
+.calendar-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    aspect-ratio: 1;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.calendar-day:hover {
+    transform: scale(1.08);
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.1);
+}
+
+.day-green {
+    background: #0a2a0a;
+    border: 1px solid #22c55e;
+}
+
+.day-red {
+    background: #2a0a0a;
+    border: 1px solid #ef4444;
+}
+
+.day-amber {
+    background: #1a1500;
+    border: 1px solid #555;
+}
+
+.day-date {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.day-icon {
+    font-size: 1.2rem;
+}
+
+.day-green .day-icon { color: #22c55e; }
+.day-red .day-icon { color: #ef4444; }
+.day-amber .day-icon { color: #f59e0b; }
+
+.day-count {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #22c55e;
 }
 
 /* Back link */

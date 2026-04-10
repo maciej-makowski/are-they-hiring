@@ -41,7 +41,9 @@ def create_app(db_session_override=None) -> FastAPI:
         today = date.today()
         summary = await get_todays_scrape_summary(session)
         raw_counts = await get_daily_counts(session)
-        daily_counts = [{"date": d["date"].isoformat(), "count": d["count"]} for d in raw_counts]
+        daily_counts = [
+            {"date": d["date"].isoformat(), "count": d["count"], "scraped": d["scraped"]} for d in raw_counts
+        ]
 
         # Determine display state:
         # "yes"     - at least one scraper finished and found SWE postings

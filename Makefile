@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint build run clean test-env-up test-env-down fetch classify reclassify
+.PHONY: test test-e2e migrate revision lint lint-fix build run clean test-env-up test-env-down fetch classify reclassify dev
 
 test:
 	uv run pytest tests/integration/ -v
@@ -45,3 +45,6 @@ classify:
 
 reclassify:
 	uv run python -m src.scrapers.scheduler reclassify $(company)
+
+dev:
+	./scripts/dev.sh

@@ -33,6 +33,14 @@ The web container auto-runs database migrations on startup. The scraper fetches 
 | PostgreSQL | 5433  | Mapped to 5433 to avoid conflicts  |
 | Ollama     | 11435 | Mapped to 11435 to avoid conflicts |
 
+### Data Persistence
+
+Database data is stored in a named Podman volume (`are-they-hiring_arethey-db-data`) and survives container restarts. To wipe the database and start fresh:
+
+```bash
+podman-compose --podman-path ./scripts/podman-remote.sh -f podman-compose.dev.yml down -v
+```
+
 ### Podman Remote (Toolbox/Container Environments)
 
 If you're running inside a toolbox or container where `podman` needs `--remote`, use the wrapper:

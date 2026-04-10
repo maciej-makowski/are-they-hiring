@@ -38,22 +38,23 @@ main {
 
 /* Counter section */
 .counter {
-    margin-bottom: 2rem;
-    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
     color: #aaa;
 }
 .counter strong { color: #e5e5e5; }
 
 /* Hero */
 .hero {
-    padding: 3rem 1rem;
+    padding: 1.5rem 1rem;
     border-radius: 1rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.5rem;
+    cursor: pointer;
 }
 
 .hero h1 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
     color: #ccc;
 }
 
@@ -79,19 +80,19 @@ main {
 
 /* Answer text */
 .answer {
-    font-size: 8rem;
+    font-size: 5rem;
     font-weight: 900;
     line-height: 1;
-    margin: 1rem 0;
+    margin: 0.5rem 0;
 }
 
 .answer-yes { color: #22c55e; }
 .answer-no { color: #ef4444; }
 
 .subtitle {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     color: #aaa;
-    margin-bottom: 1.5rem;
+    margin-bottom: 0.5rem;
 }
 
 /* Siren */

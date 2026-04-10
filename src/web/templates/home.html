@@ -9,18 +9,16 @@
     </p>
 </section>
 
-<section class="hero hero-{{ state }}">
+<section class="hero hero-{{ state }}" {% if state == "yes" %}onclick="playCelebrate()"{% elif state == "no" %}onclick="playAlarm()"{% endif %}>
     <h1>Is Big AI still hiring Software Engineers?</h1>
     {% if state == "yes" %}
         <p class="answer answer-yes">YES</p>
         <p class="subtitle">{{ count }} software engineering positions found</p>
-        <button class="celebrate-btn" onclick="playCelebrate()">Click to celebrate</button>
     {% elif state == "no" %}
         <div class="siren"></div>
         <p class="answer answer-no">NO</p>
         <p class="warning-icon">&#9888;</p>
         <p class="subtitle">No software engineering positions found</p>
-        <button class="alarm-btn" onclick="playAlarm()">Click to panic</button>
     {% else %}
         <p class="answer answer-unsure">&#8230;</p>
         <p class="subtitle unsure-subtitle">Unsure yet, still checking</p>

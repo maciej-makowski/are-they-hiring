@@ -6,8 +6,10 @@ After=are-they-hiring-db.service are-they-hiring-ollama.service
 [Container]
 Image=localhost/are-they-hiring-web:latest
 Pod=are-they-hiring.pod
-Environment=DATABASE_URL=postgresql+asyncpg://arethey:changeme@localhost:5432/arethey
-Environment=OLLAMA_HOST=http://localhost:11434
+EnvironmentFile=%h/.config/are-they-hiring/.env
+
+[Service]
+Restart=always
 
 [Install]
 WantedBy=default.target

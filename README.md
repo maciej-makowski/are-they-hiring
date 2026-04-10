@@ -173,24 +173,39 @@ make revision msg="describe the change"
 
 ## Production Deployment (Raspberry Pi / Linux)
 
-Systemd quadlet units are provided in `podman/systemd/`. To deploy:
+Systemd quadlet units are provided in `podman/systemd/`. All credentials are read from `~/.config/are-they-hiring/.env` via `EnvironmentFile` — no secrets in the unit files.
 
 ```bash
-# Build images
-make build
+# 1. Build all images
+podman build -f Containerfile.web -t are-they-hiring-web .
+podman build -f Containerfile.scraper -t are-they-hiring-scraper .
 podman build -f Containerfile.ollama -t are-they-hiring-ollama .
 
-# Copy quadlet units
-cp podman/systemd/* ~/.config/containers/systemd/
-
-# Create .env for the service
+# 2. Create .env with production credentials
 mkdir -p ~/.config/are-they-hiring
-cp .env ~/.config/are-they-hiring/.env
-# Edit: set a real POSTGRES_PASSWORD
+cp podman/systemd/.env.example ~/.config/are-they-hiring/.env
+# Edit: set a real POSTGRES_PASSWORD and update DATABASE_URL to match
 
-# Reload and start
+# 3. Copy quadlet units (not the .env.example)
+cp podman/systemd/*.container podman/systemd/*.pod ~/.config/containers/systemd/
+
+# 4. Reload and start
 systemctl --user daemon-reload
 systemctl --user start are-they-hiring-pod.service
+
+# Check status
+systemctl --user status are-they-hiring-*
+
+# View logs
+journalctl --user -u are-they-hiring-web.service -f
+journalctl --user -u are-they-hiring-scraper.service -f
+```
+
+**GPU support:** The ollama unit includes `AddDevice=nvidia.com/gpu=all`. Remove that line if deploying on a machine without an NVIDIA GPU (e.g., Raspberry Pi — it falls back to CPU).
+
+**Updating:** After pulling new code and rebuilding images, restart the services:
+```bash
+systemctl --user restart are-they-hiring-pod.service
 ```
 
 ## Architecture

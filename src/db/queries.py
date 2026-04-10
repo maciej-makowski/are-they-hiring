@@ -56,25 +56,42 @@ async def get_daily_counts(
     session: AsyncSession,
     days: int = 30,
 ) -> list[dict]:
-    """Get posting counts per day for the last N days.
+    """Get posting counts and scrape status per day for the last N days.
 
-    Returns list of dicts with 'date' and 'count' keys, ordered by date ascending.
-    A posting is counted on a day if first_seen_date <= day <= last_seen_date.
+    Returns list of dicts ordered by date ascending:
+      - date: the date
+      - count: number of SWE postings active on that day
+      - scraped: whether at least one successful scrape ran that day
     """
     today = date.today()
     results = []
 
     for i in range(days - 1, -1, -1):
         d = today - timedelta(days=i)
-        result = await session.execute(
+
+        # Count SWE postings active on this day
+        count_result = await session.execute(
             select(func.count(JobPosting.id)).where(
                 JobPosting.first_seen_date <= d,
                 JobPosting.last_seen_date >= d,
                 JobPosting.is_software_engineering == True,
             )
         )
-        count = result.scalar()
-        results.append({"date": d, "count": count})
+        count = count_result.scalar()
+
+        # Check if any successful scrape ran on this day
+        day_start = datetime.combine(d, datetime.min.time(), tzinfo=UTC)
+        day_end = datetime.combine(d + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
+        scrape_result = await session.execute(
+            select(func.count(ScrapeRun.id)).where(
+                ScrapeRun.status == "success",
+                ScrapeRun.started_at >= day_start,
+                ScrapeRun.started_at < day_end,
+            )
+        )
+        scraped = (scrape_result.scalar() or 0) > 0
+
+        results.append({"date": d, "count": count, "scraped": scraped})
 
     return results
 
@@ -95,6 +112,18 @@ async def get_postings_for_date(
     stmt = stmt.order_by(JobPosting.company, JobPosting.title)
 
     result = await session.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def get_scrape_runs_for_date(session: AsyncSession, target_date: date) -> list[ScrapeRun]:
+    """Get all scrape runs that started on a given date."""
+    day_start = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
+    day_end = datetime.combine(target_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
+    result = await session.execute(
+        select(ScrapeRun)
+        .where(ScrapeRun.started_at >= day_start, ScrapeRun.started_at < day_end)
+        .order_by(ScrapeRun.started_at.desc())
+    )
     return list(result.scalars().all())
 
 

@@ -3,6 +3,18 @@
 <a href="/" class="back-link">&larr; Back to Home</a>
 
 <h1>{{ target_date.strftime('%B %d, %Y') }}</h1>
+
+{% if not scraped %}
+<div class="day-status day-status-amber">
+    <span class="day-status-icon">?</span>
+    <p>No scraping was performed on this date. There is no data available.</p>
+</div>
+{% elif total == 0 %}
+<div class="day-status day-status-red">
+    <span class="day-status-icon">&#9888;</span>
+    <p>Scraping ran but no software engineering postings were found.</p>
+</div>
+{% else %}
 <p class="subtitle">{{ total }} software engineering posting{{ 's' if total != 1 else '' }} found</p>
 
 {% for company, jobs in by_company.items() %}
@@ -34,9 +46,5 @@
     </div>
 </div>
 {% endfor %}
-
-{% if total == 0 %}
-<p class="warning-icon">&#9888;</p>
-<p>No software engineering postings found on this date.</p>
 {% endif %}
 {% endblock %}

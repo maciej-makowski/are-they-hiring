@@ -41,7 +41,36 @@ def create_app(db_session_override=None) -> FastAPI:
         today = date.today()
         summary = await get_todays_scrape_summary(session)
         raw_counts = await get_daily_counts(session)
-        daily_counts = [{"date": d["date"].isoformat(), "count": d["count"]} for d in raw_counts]
+        # Build a lookup by date string
+        day_data = {
+            d["date"].isoformat(): {"date": d["date"].isoformat(), "count": d["count"], "scraped": d["scraped"]}
+            for d in raw_counts
+        }
+
+        # Build calendar weeks (Mon=0 ... Sun=6)
+        from datetime import timedelta
+
+        current_month = today.month
+        start = today - timedelta(days=29)
+        # Pad to start of the week (Monday)
+        start_weekday = start.weekday()  # 0=Mon
+
+        calendar_weeks = []
+        week = [None] * start_weekday  # pad leading days
+        d = start
+        while d <= today:
+            iso = d.isoformat()
+            entry = day_data.get(iso, {"date": iso, "count": 0, "scraped": False})
+            entry["in_current_month"] = d.month == current_month
+            entry["day_num"] = d.day
+            entry["weekday"] = d.strftime("%a")
+            week.append(entry)
+            if len(week) == 7:
+                calendar_weeks.append(week)
+                week = []
+            d += timedelta(days=1)
+        if week:
+            calendar_weeks.append(week)
 
         # Determine display state:
         # "yes"     - at least one scraper finished and found SWE postings
@@ -63,7 +92,7 @@ def create_app(db_session_override=None) -> FastAPI:
                 "request": request,
                 "state": state,
                 "count": summary["posting_count"],
-                "daily_counts": daily_counts,
+                "calendar_weeks": calendar_weeks,
                 "months": months,
                 "days_remainder": days_r,
                 "total_days": delta.days,
@@ -73,11 +102,16 @@ def create_app(db_session_override=None) -> FastAPI:
 
     @app.get("/day/{target_date}")
     async def day_detail(request: Request, target_date: str, session: AsyncSession = Depends(get_session)):
+        from src.db.queries import get_scrape_runs_for_date
+
         parsed_date = date.fromisoformat(target_date)
         postings = await get_postings_for_date(session, parsed_date)
+        scrape_runs = await get_scrape_runs_for_date(session, parsed_date)
         by_company: dict[str, list] = {}
         for p in postings:
             by_company.setdefault(p.company, []).append(p)
+
+        scraped = len(scrape_runs) > 0
         return templates.TemplateResponse(
             "day_detail.html",
             {
@@ -86,6 +120,8 @@ def create_app(db_session_override=None) -> FastAPI:
                 "postings": postings,
                 "by_company": by_company,
                 "total": len(postings),
+                "scraped": scraped,
+                "scrape_runs": scrape_runs,
             },
         )
 

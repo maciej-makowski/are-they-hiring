@@ -247,6 +247,8 @@ async def test_get_daily_counts(db_session):
     assert counts[4]["count"] == 1
     # Dates should be ascending
     assert counts[0]["date"] < counts[4]["date"]
+    # Each entry should have a 'scraped' key
+    assert all("scraped" in c for c in counts)
 
 
 async def test_get_recent_scrape_runs(db_session):

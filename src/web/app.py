@@ -41,9 +41,36 @@ def create_app(db_session_override=None) -> FastAPI:
         today = date.today()
         summary = await get_todays_scrape_summary(session)
         raw_counts = await get_daily_counts(session)
-        daily_counts = [
-            {"date": d["date"].isoformat(), "count": d["count"], "scraped": d["scraped"]} for d in raw_counts
-        ]
+        # Build a lookup by date string
+        day_data = {
+            d["date"].isoformat(): {"date": d["date"].isoformat(), "count": d["count"], "scraped": d["scraped"]}
+            for d in raw_counts
+        }
+
+        # Build calendar weeks (Mon=0 ... Sun=6)
+        from datetime import timedelta
+
+        current_month = today.month
+        start = today - timedelta(days=29)
+        # Pad to start of the week (Monday)
+        start_weekday = start.weekday()  # 0=Mon
+
+        calendar_weeks = []
+        week = [None] * start_weekday  # pad leading days
+        d = start
+        while d <= today:
+            iso = d.isoformat()
+            entry = day_data.get(iso, {"date": iso, "count": 0, "scraped": False})
+            entry["in_current_month"] = d.month == current_month
+            entry["day_num"] = d.day
+            entry["weekday"] = d.strftime("%a")
+            week.append(entry)
+            if len(week) == 7:
+                calendar_weeks.append(week)
+                week = []
+            d += timedelta(days=1)
+        if week:
+            calendar_weeks.append(week)
 
         # Determine display state:
         # "yes"     - at least one scraper finished and found SWE postings
@@ -65,7 +92,7 @@ def create_app(db_session_override=None) -> FastAPI:
                 "request": request,
                 "state": state,
                 "count": summary["posting_count"],
-                "daily_counts": daily_counts,
+                "calendar_weeks": calendar_weeks,
                 "months": months,
                 "days_remainder": days_r,
                 "total_days": delta.days,

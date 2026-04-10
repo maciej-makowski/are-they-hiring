@@ -38,23 +38,29 @@
 
 <section class="calendar-container">
     <h2>Last 30 Days</h2>
-    <div class="calendar-grid">
-        {% for day in daily_counts %}
-        <a href="/day/{{ day.date }}" class="calendar-day {% if day.count > 0 %}day-green{% elif day.scraped %}day-red{% else %}day-amber{% endif %}">
-            <span class="day-date">{{ day.date[5:] }}</span>
-            <span class="day-icon">
-                {%- if day.count > 0 -%}
-                    &#10003;
-                {%- elif day.scraped -%}
-                    &#9888;
-                {%- else -%}
-                    &#63;
-                {%- endif -%}
-            </span>
-            {% if day.count > 0 %}
-            <span class="day-count">{{ day.count }}</span>
-            {% endif %}
-        </a>
+    <div class="calendar">
+        <div class="calendar-header">
+            <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+        </div>
+        {% for week in calendar_weeks %}
+        <div class="calendar-week">
+            {% for day in week %}
+                {% if day %}
+                <a href="/day/{{ day.date }}"
+                   class="calendar-day {% if day.count > 0 %}day-green{% elif day.scraped %}day-red{% else %}day-amber{% endif %} {% if not day.in_current_month %}day-faded{% endif %}">
+                    <span class="day-num">{{ day.day_num }}</span>
+                    <span class="day-icon">
+                        {%- if day.count > 0 -%}&#10003;{%- elif day.scraped -%}&#9888;{%- else -%}?{%- endif -%}
+                    </span>
+                    {% if day.count > 0 %}
+                    <span class="day-count">{{ day.count }}</span>
+                    {% endif %}
+                </a>
+                {% else %}
+                <div class="calendar-day day-empty"></div>
+                {% endif %}
+            {% endfor %}
+        </div>
         {% endfor %}
     </div>
 </section>

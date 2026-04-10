@@ -115,6 +115,18 @@ async def get_postings_for_date(
     return list(result.scalars().all())
 
 
+async def get_scrape_runs_for_date(session: AsyncSession, target_date: date) -> list[ScrapeRun]:
+    """Get all scrape runs that started on a given date."""
+    day_start = datetime.combine(target_date, datetime.min.time(), tzinfo=UTC)
+    day_end = datetime.combine(target_date + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
+    result = await session.execute(
+        select(ScrapeRun)
+        .where(ScrapeRun.started_at >= day_start, ScrapeRun.started_at < day_end)
+        .order_by(ScrapeRun.started_at.desc())
+    )
+    return list(result.scalars().all())
+
+
 async def get_yesterday_count(session: AsyncSession) -> int:
     """Get total software engineering posting count for yesterday."""
     yesterday = date.today() - timedelta(days=1)

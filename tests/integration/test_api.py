@@ -25,7 +25,7 @@ async def _seed_postings(db_session, target_date: date, count: int = 3):
         id=uuid.uuid4(),
         company="anthropic",
         status="success",
-        started_at=datetime.now(UTC),
+        started_at=datetime.combine(target_date, datetime.min.time(), tzinfo=UTC),
         attempt_number=1,
     )
     db_session.add(run)
@@ -102,11 +102,30 @@ async def test_day_detail_page(client, db_session):
     assert "3 posting" in response.text
 
 
-async def test_day_detail_empty(client):
+async def test_day_detail_no_scrape(client):
+    """Day with no scrape data should show amber 'no scraping' message."""
     target = date(2020, 1, 1)
     response = await client.get(f"/day/{target.isoformat()}")
     assert response.status_code == 200
-    assert "0 software engineering posting" in response.text
+    assert "No scraping was performed" in response.text
+
+
+async def test_day_detail_scraped_no_postings(client, db_session):
+    """Day with scrapes but 0 SWE postings should show red warning."""
+    target = date.today() - timedelta(days=2)
+    run = ScrapeRun(
+        id=uuid.uuid4(),
+        company="anthropic",
+        status="success",
+        started_at=datetime.combine(target, datetime.min.time(), tzinfo=UTC),
+        attempt_number=1,
+        postings_found=0,
+    )
+    db_session.add(run)
+    await db_session.commit()
+    response = await client.get(f"/day/{target.isoformat()}")
+    assert response.status_code == 200
+    assert "no software engineering postings were found" in response.text
 
 
 async def test_scrape_status_page(client, db_session):

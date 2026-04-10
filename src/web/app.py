@@ -102,11 +102,16 @@ def create_app(db_session_override=None) -> FastAPI:
 
     @app.get("/day/{target_date}")
     async def day_detail(request: Request, target_date: str, session: AsyncSession = Depends(get_session)):
+        from src.db.queries import get_scrape_runs_for_date
+
         parsed_date = date.fromisoformat(target_date)
         postings = await get_postings_for_date(session, parsed_date)
+        scrape_runs = await get_scrape_runs_for_date(session, parsed_date)
         by_company: dict[str, list] = {}
         for p in postings:
             by_company.setdefault(p.company, []).append(p)
+
+        scraped = len(scrape_runs) > 0
         return templates.TemplateResponse(
             "day_detail.html",
             {
@@ -115,6 +120,8 @@ def create_app(db_session_override=None) -> FastAPI:
                 "postings": postings,
                 "by_company": by_company,
                 "total": len(postings),
+                "scraped": scraped,
+                "scrape_runs": scrape_runs,
             },
         )
 

@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build run clean test-env-up test-env-down fetch classify reclassify dev
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all run clean test-env-up test-env-down fetch classify reclassify dev install uninstall
 
 test:
 	uv run pytest tests/integration/ -v
@@ -24,6 +24,9 @@ build:
 	podman build -f Containerfile.web -t are-they-hiring-web .
 	podman build -f Containerfile.scraper -t are-they-hiring-scraper .
 
+build-all: build
+	podman build -f Containerfile.ollama -t are-they-hiring-ollama .
+
 run:
 	podman play kube podman/pod.yml
 
@@ -48,3 +51,25 @@ reclassify:
 
 dev:
 	./scripts/dev.sh
+
+install: build-all
+	@echo "Installing systemd quadlet units..."
+	mkdir -p $(HOME)/.config/containers/systemd
+	cp podman/systemd/*.pod podman/systemd/*.container $(HOME)/.config/containers/systemd/
+	@if [ ! -f $(HOME)/.config/are-they-hiring/.env ]; then \
+		mkdir -p $(HOME)/.config/are-they-hiring; \
+		cp podman/systemd/.env.example $(HOME)/.config/are-they-hiring/.env; \
+		echo ""; \
+		echo "*** IMPORTANT: Edit $(HOME)/.config/are-they-hiring/.env ***"; \
+		echo "*** Set a real POSTGRES_PASSWORD and update DATABASE_URL  ***"; \
+		echo ""; \
+	fi
+	systemctl --user daemon-reload
+	@echo "Done. Start with: systemctl --user start are-they-hiring-pod.service"
+
+uninstall:
+	systemctl --user stop are-they-hiring-pod.service 2>/dev/null || true
+	rm -f $(HOME)/.config/containers/systemd/are-they-hiring*.pod
+	rm -f $(HOME)/.config/containers/systemd/are-they-hiring*.container
+	systemctl --user daemon-reload
+	@echo "Units removed. Data volume and .env preserved."

@@ -173,39 +173,64 @@ make revision msg="describe the change"
 
 ## Production Deployment (Raspberry Pi / Linux)
 
-Systemd quadlet units are provided in `podman/systemd/`. All credentials are read from `~/.config/are-they-hiring/.env` via `EnvironmentFile` — no secrets in the unit files.
+Two deployment methods are available:
+
+### Option A: podman-compose (works with Podman 4.3+)
+
+Best for Raspberry Pi and older systems. Requires `podman-compose` installed (`pip install podman-compose`).
 
 ```bash
-# 1. Build all images
-podman build -f Containerfile.web -t are-they-hiring-web .
-podman build -f Containerfile.scraper -t are-they-hiring-scraper .
-podman build -f Containerfile.ollama -t are-they-hiring-ollama .
+# Build images and install systemd service
+make install-compose
 
-# 2. Create .env with production credentials
-mkdir -p ~/.config/are-they-hiring
-cp podman/systemd/.env.example ~/.config/are-they-hiring/.env
-# Edit: set a real POSTGRES_PASSWORD and update DATABASE_URL to match
+# Edit .env with real credentials
+nano ~/.config/are-they-hiring/.env
 
-# 3. Copy quadlet units (not the .env.example)
-cp podman/systemd/*.container podman/systemd/*.pod ~/.config/containers/systemd/
+# Start and enable on boot
+systemctl --user start are-they-hiring-compose.service
+systemctl --user enable are-they-hiring-compose.service
 
-# 4. Reload and start
-systemctl --user daemon-reload
+# View logs
+journalctl --user -u are-they-hiring-compose.service -f
+
+# Uninstall (preserves data and .env)
+make uninstall-compose
+```
+
+### Option B: Quadlet units (requires Podman 4.4+)
+
+Native systemd integration, no podman-compose needed.
+
+```bash
+# Build images and install quadlet units
+make install
+
+# Edit .env with real credentials
+nano ~/.config/are-they-hiring/.env
+
+# Start
 systemctl --user start are-they-hiring-pod.service
-
-# Check status
-systemctl --user status are-they-hiring-*
 
 # View logs
 journalctl --user -u are-they-hiring-web.service -f
-journalctl --user -u are-they-hiring-scraper.service -f
+
+# Uninstall (preserves data and .env)
+make uninstall
 ```
 
-**GPU support:** The ollama unit includes `AddDevice=nvidia.com/gpu=all`. Remove that line if deploying on a machine without an NVIDIA GPU (e.g., Raspberry Pi — it falls back to CPU).
+### GPU support
 
-**Updating:** After pulling new code and rebuilding images, restart the services:
+GPU acceleration is disabled by default. To enable on NVIDIA systems:
+- **Quadlet:** Uncomment `AddDevice` and `OLLAMA_*` lines in `~/.config/containers/systemd/are-they-hiring-ollama.container`
+- **Compose:** Add `devices: [nvidia.com/gpu=all]` and GPU env vars to the ollama service in `~/.config/are-they-hiring/compose.yml`
+
+### Updating
+
+After pulling new code:
 ```bash
-systemctl --user restart are-they-hiring-pod.service
+make build-all
+# Then restart: systemctl --user restart are-they-hiring-compose.service
+# Or for quadlets: systemctl --user restart are-they-hiring-pod.service
 ```
 
 ## Architecture

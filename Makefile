@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build build-all run clean test-env-up test-env-down fetch classify reclassify dev install uninstall
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all run clean test-env-up test-env-down fetch classify reclassify dev install uninstall install-compose uninstall-compose
 
 test:
 	uv run pytest tests/integration/ -v
@@ -73,3 +73,27 @@ uninstall:
 	rm -f $(HOME)/.config/containers/systemd/are-they-hiring*.container
 	systemctl --user daemon-reload
 	@echo "Units removed. Data volume and .env preserved."
+
+install-compose: build-all
+	@echo "Installing compose-based systemd service..."
+	mkdir -p $(HOME)/.config/are-they-hiring
+	cp podman-compose.prod.yml $(HOME)/.config/are-they-hiring/compose.yml
+	@if [ ! -f $(HOME)/.config/are-they-hiring/.env ]; then \
+		cp podman/systemd/.env.example $(HOME)/.config/are-they-hiring/.env; \
+		echo ""; \
+		echo "*** IMPORTANT: Edit $(HOME)/.config/are-they-hiring/.env ***"; \
+		echo "*** Set a real POSTGRES_PASSWORD and update DATABASE_URL  ***"; \
+		echo ""; \
+	fi
+	mkdir -p $(HOME)/.config/systemd/user
+	cp podman/systemd/are-they-hiring-compose.service $(HOME)/.config/systemd/user/
+	systemctl --user daemon-reload
+	@echo "Done. Start with: systemctl --user start are-they-hiring-compose.service"
+	@echo "Enable on boot: systemctl --user enable are-they-hiring-compose.service"
+
+uninstall-compose:
+	systemctl --user stop are-they-hiring-compose.service 2>/dev/null || true
+	systemctl --user disable are-they-hiring-compose.service 2>/dev/null || true
+	rm -f $(HOME)/.config/systemd/user/are-they-hiring-compose.service
+	systemctl --user daemon-reload
+	@echo "Service removed. Data volume, compose file, and .env preserved."

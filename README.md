@@ -139,7 +139,7 @@ This builds:
 - `are-they-hiring-web` — FastAPI app (runs migrations on start)
 - `are-they-hiring-scraper` — Scheduler + scrapers + classifier
 
-The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma2:2b model baked in.
+The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma4:e2b model baked in.
 
 ## Configuration
 

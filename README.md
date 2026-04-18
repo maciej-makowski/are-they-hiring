@@ -207,6 +207,10 @@ podman info | grep graphDriverName  # should now report "overlay"
 Best for Raspberry Pi and older systems. Requires `podman-compose` installed (`pip install podman-compose`).
 
 ```bash
+# Allow user-scope systemd units to keep running after SSH logout.
+# Without this, the stack will stop when you disconnect.
+sudo loginctl enable-linger $USER
+
 # Build images and install systemd service
 make install-compose
 

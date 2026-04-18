@@ -126,7 +126,7 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 
 **Candidates:**
 - ~~xAI~~ (done — Greenhouse scraper landed 2026-04-18)
-- Meta AI (FAIR)
+- ~~Meta AI (FAIR)~~ (done — metacareers GraphQL scraper landed 2026-04-18)
 - Mistral
 - Cohere
 - ~~Perplexity~~ (done — Ashby scraper landed 2026-04-18)

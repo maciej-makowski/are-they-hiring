@@ -129,7 +129,7 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 - Meta AI (FAIR)
 - Mistral
 - Cohere
-- Perplexity
+- ~~Perplexity~~ (done — Ashby scraper landed 2026-04-18)
 - Inflection (if still hiring independently)
 
 **Shape:**

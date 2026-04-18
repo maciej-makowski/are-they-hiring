@@ -179,11 +179,14 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
       - succeeded: number of companies with successful scrapes today
       - running: number of companies with running scrapes
       - failed: number of companies with only failed scrapes today
-      - total_companies: 3 (anthropic, openai, deepmind)
+      - total_companies: number of registered company scrapers
       - has_postings: whether any successful scrape found SWE postings
     """
+    # Import here to avoid a circular import between queries and the scraper registry.
+    from src.scrapers.scheduler import SCRAPERS
+
     today_start = datetime.combine(date.today(), datetime.min.time(), tzinfo=UTC)
-    companies = ["anthropic", "openai", "deepmind"]
+    companies = list(SCRAPERS.keys())
 
     succeeded = 0
     running = 0

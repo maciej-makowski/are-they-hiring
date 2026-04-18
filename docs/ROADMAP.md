@@ -125,7 +125,7 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 **Goal:** expand the scraper coverage beyond the original three.
 
 **Candidates:**
-- xAI
+- ~~xAI~~ (done — Greenhouse scraper landed 2026-04-18)
 - Meta AI (FAIR)
 - Mistral
 - Cohere

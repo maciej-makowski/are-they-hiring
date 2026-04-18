@@ -15,6 +15,7 @@ from src.db.session import get_session_factory
 from src.scrapers.anthropic import AnthropicScraper
 from src.scrapers.deepmind import DeepMindScraper
 from src.scrapers.openai_scraper import OpenAIScraper
+from src.scrapers.perplexity import PerplexityScraper
 from src.scrapers.xai import XAIScraper
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ SCRAPERS = {
     "openai": OpenAIScraper,
     "deepmind": DeepMindScraper,
     "xai": XAIScraper,
+    "perplexity": PerplexityScraper,
 }
 
 

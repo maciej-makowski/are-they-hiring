@@ -175,6 +175,31 @@ make revision msg="describe the change"
 
 Two deployment methods are available:
 
+### Raspberry Pi prerequisites
+
+Before deploying on a Pi, verify Podman is using the `overlay` storage driver, not `vfs`. `vfs` makes container operations catastrophically slow (full layer copies on every start).
+
+```bash
+podman info | grep graphDriverName
+```
+
+If it reports `vfs`, switch to overlay. Edit `~/.config/containers/storage.conf`:
+
+```toml
+[storage]
+driver = "overlay"
+
+[storage.options.overlay]
+mount_program = "/usr/bin/fuse-overlayfs"
+```
+
+Install `fuse-overlayfs` if needed (`sudo apt install fuse-overlayfs`), then reset storage:
+
+```bash
+podman system reset --force
+podman info | grep graphDriverName  # should now report "overlay"
+```
+
 ### Option A: podman-compose (works with Podman 4.3+)
 
 Best for Raspberry Pi and older systems. Requires `podman-compose` installed (`pip install podman-compose`).

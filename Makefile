@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build build-all run clean test-env-up test-env-down fetch classify reclassify dev install uninstall install-compose uninstall-compose
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify dev install uninstall install-compose uninstall-compose
 
 test:
 	uv run pytest tests/integration/ -v
@@ -20,12 +20,18 @@ lint-fix:
 	uv run ruff check --fix src/ tests/
 	uv run ruff format src/ tests/
 
-build:
+build-container-web:
 	podman build -f Containerfile.web -t are-they-hiring-web .
+
+build-container-scraper:
 	podman build -f Containerfile.scraper -t are-they-hiring-scraper .
 
-build-all: build
+build-container-ollama:
 	podman build -f Containerfile.ollama -t are-they-hiring-ollama .
+
+build: build-container-web build-container-scraper
+
+build-all: build build-container-ollama
 
 run:
 	podman play kube podman/pod.yml

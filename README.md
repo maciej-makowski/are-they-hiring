@@ -16,7 +16,7 @@ A satirical web app that scrapes job postings from Anthropic, OpenAI, and Google
 git clone <repo-url> && cd are-they-hiring
 uv sync --all-extras
 
-# 2. Start all services (PostgreSQL, Ollama w/ gemma2:2b, web app, scraper)
+# 2. Start all services (PostgreSQL, Ollama w/ gemma3:270m, web app, scraper)
 podman-compose -f podman-compose.dev.yml up -d
 
 # 3. Open in browser
@@ -139,7 +139,7 @@ This builds:
 - `are-they-hiring-web` — FastAPI app (runs migrations on start)
 - `are-they-hiring-scraper` — Scheduler + scrapers + classifier
 
-The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma2:2b model baked in.
+The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma3:270m-it-qat model baked in.
 
 ## Configuration
 
@@ -154,7 +154,7 @@ Key settings:
 | Variable              | Default                | Description                      |
 |-----------------------|------------------------|----------------------------------|
 | `DATABASE_URL`        | `postgresql+asyncpg://arethey:changeme@...` | PostgreSQL connection |
-| `OLLAMA_MODEL`        | `gemma2:2b`            | LLM model for classification     |
+| `OLLAMA_MODEL`        | `gemma3:270m-it-qat`   | LLM model for classification     |
 | `OLLAMA_HOST`         | `http://localhost:11434` | Ollama API endpoint            |
 | `CLASSIFY_CONCURRENCY`| `4`                    | Parallel Ollama requests         |
 | `SCRAPE_SCHEDULE`     | `06:00,12:00,18:00`   | Cron times for scraping (UTC)    |
@@ -240,7 +240,7 @@ PostgreSQL ← Web (FastAPI + Jinja2) → Browser
      ↑
 Scraper (APScheduler) → Greenhouse/Ashby APIs
      ↓
-Ollama (gemma2:2b, GPU) → Classification
+Ollama (gemma3:270m, CPU/GPU) → Classification
 ```
 
 - **Web**: FastAPI serves HTMX/Jinja2 pages with Chart.js and confetti

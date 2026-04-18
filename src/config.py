@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     scrape_schedule: str = "06:00,12:00,18:00"
     scrape_retry_max: int = 3
     scrape_delay_seconds: int = 2
-    ollama_model: str = "gemma2:2b"
+    ollama_model: str = "gemma3:270m-it-qat"
     ollama_host: str = "http://localhost:11434"
     classify_concurrency: int = 4
     anthropic_careers_url: str = "https://www.anthropic.com/careers"

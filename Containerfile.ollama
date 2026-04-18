@@ -3,5 +3,5 @@ FROM docker.io/ollama/ollama:latest
 # Pre-pull the model during build so it's baked into the image
 RUN bash -c 'ollama serve &' && \
     sleep 5 && \
-    ollama pull gemma2:2b && \
+    ollama pull gemma3:270m-it-qat && \
     pkill ollama || true

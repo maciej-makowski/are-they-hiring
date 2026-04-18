@@ -1,5 +1,5 @@
 [Unit]
-Description=Are They Hiring - Ollama LLM (gemma2:2b bundled)
+Description=Are They Hiring - Ollama LLM (gemma3:270m bundled)
 Requires=are-they-hiring-pod.service
 After=are-they-hiring-pod.service
 

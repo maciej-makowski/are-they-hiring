@@ -10,8 +10,8 @@
 ## Decision Log
 
 ### 1. Target Companies
-**Decision:** Anthropic, OpenAI, Google DeepMind
-**Rationale:** The three most prominent AI companies making bold claims about AI replacing software engineers. Direct relevance to the project's satirical premise.
+**Decision:** Anthropic, OpenAI, Google DeepMind, xAI (added 2026-04-18)
+**Rationale:** The most prominent AI companies making bold claims about AI replacing software engineers. Direct relevance to the project's satirical premise. Additional labs can be added incrementally via the `SCRAPERS` registry; see roadmap item 6 for the remaining candidates.
 
 ### 2. Frontend Technology
 **Decision:** HTMX + Jinja2 templates served by FastAPI (no separate JS framework)
@@ -23,10 +23,11 @@
 ### 3. Scraping Approach
 **Decision (revised 2026-04-05):** JSON API scraping via httpx (no browser automation)
 **Original decision:** Playwright browser automation for all three companies
-**What changed:** All three companies expose public job board APIs:
+**What changed:** All companies expose public job board APIs:
 - Anthropic: Greenhouse API (`boards-api.greenhouse.io/v1/boards/anthropic/jobs`)
 - OpenAI: Ashby API (`api.ashbyhq.com/posting-api/job-board/openai`)
 - DeepMind: Greenhouse API (`boards-api.greenhouse.io/v1/boards/deepmind/jobs`)
+- xAI: Greenhouse API (`boards-api.greenhouse.io/v1/boards/xai/jobs`)
 **Rationale:** JSON APIs are faster, lighter (no browser/Chromium needed), more reliable, and return structured data. The scraper container went from ~1.3GB (with Chromium) to ~580MB. Playwright is no longer a runtime dependency for scraping.
 
 ### 4. Job Title Classification
@@ -101,11 +102,11 @@
 │  │  APScheduler, runs 3x daily      │             │
 │  │  Pipeline: fetch → classify      │             │
 │  │                                  │             │
-│  │  ┌─────────┐┌────────┐┌───────┐ │             │
-│  │  │Anthropic││OpenAI  ││DeepMind│ │             │
-│  │  │Greenhouse│Ashby   ││Greenhouse│             │
-│  │  │  API    ││  API   ││  API  │ │             │
-│  │  └─────────┘└────────┘└───────┘ │             │
+│  │  ┌─────────┐┌────────┐┌───────┐┌────┐│             │
+│  │  │Anthropic││OpenAI  ││DeepMind││xAI ││             │
+│  │  │Greenhouse│Ashby   ││Greenhouse│Greenhouse│             │
+│  │  │  API    ││  API   ││  API  ││ API││             │
+│  │  └─────────┘└────────┘└───────┘└────┘│             │
 │  └──────────────────────────────────┘             │
 │                                          :8000 ──►│
 └────────────────────────────────────────────────────┘
@@ -121,7 +122,7 @@ All containers communicate over the pod's shared network.
 | Column           | Type      | Notes                                    |
 |------------------|-----------|------------------------------------------|
 | id               | UUID      | Primary key                              |
-| company          | VARCHAR   | anthropic / openai / deepmind            |
+| company          | VARCHAR   | anthropic / openai / deepmind / xai       |
 | status           | VARCHAR   | running / success / failed               |
 | started_at       | TIMESTAMP |                                          |
 | finished_at      | TIMESTAMP | Nullable                                 |
@@ -137,7 +138,7 @@ All containers communicate over the pod's shared network.
 |------------------------|-----------|----------------------------------------|
 | id                     | UUID      | Primary key                            |
 | scrape_run_id          | UUID      | FK to scrape_runs                      |
-| company                | VARCHAR   | anthropic / openai / deepmind          |
+| company                | VARCHAR   | anthropic / openai / deepmind / xai    |
 | title                  | VARCHAR   | Original job title                     |
 | location               | VARCHAR   |                                        |
 | url                    | VARCHAR   | Link to original posting               |
@@ -240,8 +241,9 @@ CLASSIFY_CONCURRENCY=4
 
 # Company APIs (auto-configured, override if needed)
 # Anthropic: boards-api.greenhouse.io/v1/boards/anthropic/jobs
-# OpenAI: api.ashbyhq.com/posting-api/job-board/openai
-# DeepMind: boards-api.greenhouse.io/v1/boards/deepmind/jobs
+# OpenAI:    api.ashbyhq.com/posting-api/job-board/openai
+# DeepMind:  boards-api.greenhouse.io/v1/boards/deepmind/jobs
+# xAI:       boards-api.greenhouse.io/v1/boards/xai/jobs
 ```
 
 ---
@@ -306,6 +308,7 @@ are-they-hiring/
 │   │   ├── anthropic.py               # Greenhouse API parser
 │   │   ├── openai_scraper.py          # Ashby API parser
 │   │   ├── deepmind.py                # Greenhouse API parser
+│   │   ├── xai.py                     # Greenhouse API parser
 │   │   └── scheduler.py               # fetch/classify/reclassify + APScheduler
 │   └── web/
 │       ├── app.py                     # FastAPI app factory + routes

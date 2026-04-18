@@ -1,6 +1,6 @@
 # Are They Still Hiring Software Engineers?
 
-A satirical web app that scrapes job postings from Anthropic, OpenAI, and Google DeepMind, classifies them using a local LLM, and displays whether Big AI is still hiring software engineers — with a countdown since Dario Amodei claimed AI would replace all software engineers.
+A satirical web app that scrapes job postings from Anthropic, OpenAI, Google DeepMind, and xAI, classifies them using a local LLM, and displays whether Big AI is still hiring software engineers — with a countdown since Dario Amodei claimed AI would replace all software engineers.
 
 > **Contributing?** Read [`AGENTS.md`](AGENTS.md) first — it lays out the repo conventions (branches, commits, tests, docs) both humans and AI agents should follow.
 
@@ -25,7 +25,7 @@ podman-compose -f podman-compose.dev.yml up -d
 open http://localhost:8000
 ```
 
-The web container auto-runs database migrations on startup. The scraper fetches from all 3 company APIs and classifies titles via Ollama immediately, then on the configured schedule.
+The web container auto-runs database migrations on startup. The scraper fetches from all 4 company APIs and classifies titles via Ollama immediately, then on the configured schedule.
 
 ### Port Mappings
 
@@ -271,7 +271,7 @@ Ollama (gemma3:270m, CPU/GPU) → Classification
 ```
 
 - **Web**: FastAPI serves HTMX/Jinja2 pages with Chart.js and confetti
-- **Scraper**: Fetches from Greenhouse (Anthropic, DeepMind) and Ashby (OpenAI) JSON APIs
+- **Scraper**: Fetches from Greenhouse (Anthropic, DeepMind, xAI) and Ashby (OpenAI) JSON APIs
 - **Classifier**: Parallel Ollama requests to classify job titles as SWE or not
 - **Database**: PostgreSQL with deduplication by (company, URL), first/last seen tracking
 

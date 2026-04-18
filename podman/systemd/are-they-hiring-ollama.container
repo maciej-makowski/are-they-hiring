@@ -1,12 +1,19 @@
 [Unit]
-Description=Are They Hiring - Ollama LLM
+Description=Are They Hiring - Ollama LLM (gemma3:270m bundled)
 Requires=are-they-hiring-pod.service
 After=are-they-hiring-pod.service
 
 [Container]
-Image=docker.io/ollama/ollama:latest
+Image=localhost/are-they-hiring-ollama:latest
 Pod=are-they-hiring.pod
-Volume=are-they-hiring-ollama-models:/root/.ollama
+# Uncomment for NVIDIA GPU acceleration:
+#AddDevice=nvidia.com/gpu=all
+#Environment=OLLAMA_VULKAN=1
+#Environment=OLLAMA_GPU_LAYERS=-1
+
+[Service]
+Restart=always
+TimeoutStartSec=120
 
 [Install]
 WantedBy=default.target

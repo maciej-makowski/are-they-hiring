@@ -39,7 +39,7 @@ spec:
         - name: OLLAMA_HOST
           value: "http://localhost:11434"
         - name: OLLAMA_MODEL
-          value: "tinyllama:1.1b"
+          value: "gemma3:270m-it-qat"
         - name: SCRAPE_SCHEDULE
           value: "06:00,12:00,18:00"
   volumes:

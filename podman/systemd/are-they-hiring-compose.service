@@ -1,0 +1,15 @@
+[Unit]
+Description=Are They Hiring - All Services (podman-compose)
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/.config/are-they-hiring
+ExecStartPre=/usr/bin/podman-compose -f compose.yml up -d
+ExecStart=/bin/sleep infinity
+ExecStop=/usr/bin/podman-compose -f compose.yml down
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

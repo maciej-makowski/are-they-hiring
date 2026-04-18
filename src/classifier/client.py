@@ -38,6 +38,7 @@ async def classify_titles(
     model: str | None = None,
     on_progress=None,
     concurrency: int | None = None,
+    timeout: float | None = None,
 ) -> dict[str, bool]:
     """Classify job titles as SWE or not, with parallel Ollama requests.
 
@@ -47,10 +48,13 @@ async def classify_titles(
         model: Model name to use.
         on_progress: Async callback(current, total) for progress reporting.
         concurrency: Max parallel requests (default from settings.classify_concurrency).
+        timeout: HTTP timeout per request in seconds
+            (default from settings.ollama_timeout_seconds).
     """
     host = ollama_host or settings.ollama_host
     model_name = model or settings.ollama_model
     max_concurrent = concurrency or settings.classify_concurrency
+    request_timeout = timeout if timeout is not None else settings.ollama_timeout_seconds
     results: dict[str, bool] = {}
     total = len(titles)
     completed = 0
@@ -65,7 +69,7 @@ async def classify_titles(
         if on_progress:
             await on_progress(completed, total)
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
+    async with httpx.AsyncClient(timeout=request_timeout) as client:
         tasks = [_classify_with_sem(client, title) for title in titles]
         await asyncio.gather(*tasks)
 

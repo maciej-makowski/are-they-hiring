@@ -62,6 +62,7 @@ async def get_daily_counts(
       - date: the date
       - count: number of SWE postings active on that day
       - scraped: whether at least one successful scrape ran that day
+      - classifying: postings active on this day have classified_at IS NULL
     """
     today = date.today()
     results = []
@@ -79,6 +80,16 @@ async def get_daily_counts(
         )
         count = count_result.scalar()
 
+        # Count unclassified postings active on this day
+        unclassified_result = await session.execute(
+            select(func.count(JobPosting.id)).where(
+                JobPosting.first_seen_date <= d,
+                JobPosting.last_seen_date >= d,
+                JobPosting.classified_at.is_(None),
+            )
+        )
+        classifying = (unclassified_result.scalar() or 0) > 0
+
         # Check if any successful scrape ran on this day
         day_start = datetime.combine(d, datetime.min.time(), tzinfo=UTC)
         day_end = datetime.combine(d + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
@@ -91,9 +102,21 @@ async def get_daily_counts(
         )
         scraped = (scrape_result.scalar() or 0) > 0
 
-        results.append({"date": d, "count": count, "scraped": scraped})
+        results.append({"date": d, "count": count, "scraped": scraped, "classifying": classifying})
 
     return results
+
+
+async def get_unclassified_count_for_date(session: AsyncSession, target_date: date) -> int:
+    """Count postings active on target_date that haven't been classified yet."""
+    result = await session.execute(
+        select(func.count(JobPosting.id)).where(
+            JobPosting.first_seen_date <= target_date,
+            JobPosting.last_seen_date >= target_date,
+            JobPosting.classified_at.is_(None),
+        )
+    )
+    return result.scalar() or 0
 
 
 async def get_postings_for_date(
@@ -199,6 +222,18 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
         if count > 0:
             break
 
+    # Classification stats for postings active today
+    active_today_stmt = select(func.count(JobPosting.id)).where(
+        JobPosting.first_seen_date <= today,
+        JobPosting.last_seen_date >= today,
+    )
+    active_today_result = await session.execute(active_today_stmt)
+    active_today_total = active_today_result.scalar() or 0
+
+    unclassified_today_result = await session.execute(active_today_stmt.where(JobPosting.classified_at.is_(None)))
+    unclassified_today = unclassified_today_result.scalar() or 0
+    classified_today = active_today_total - unclassified_today
+
     return {
         "succeeded": succeeded,
         "running": running,
@@ -206,4 +241,7 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
         "total_companies": len(companies),
         "has_postings": count > 0,
         "posting_count": count,
+        "active_today_total": active_today_total,
+        "classified_today": classified_today,
+        "unclassified_today": unclassified_today,
     }

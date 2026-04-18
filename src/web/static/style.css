@@ -221,6 +221,11 @@ main {
     border: 1px solid #444;
 }
 
+.day-classifying {
+    background: #1a1500;
+    border: 1px solid #f59e0b;
+}
+
 .day-num {
     font-size: 0.55rem;
     color: #888;
@@ -234,6 +239,29 @@ main {
 .day-green .day-icon { color: #22c55e; }
 .day-red .day-icon { color: #ef4444; }
 .day-amber .day-icon { color: #f59e0b; }
+.day-classifying .day-icon { color: #f59e0b; }
+
+/* Loading spinner */
+.spinner {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border: 2px solid rgba(245, 158, 11, 0.25);
+    border-top-color: #f59e0b;
+    border-radius: 50%;
+    animation: spinner-rotate 0.8s linear infinite;
+    vertical-align: middle;
+}
+
+.spinner-lg {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-width: 3px;
+}
+
+@keyframes spinner-rotate {
+    to { transform: rotate(360deg); }
+}
 
 .day-count {
     font-size: 0.55rem;
@@ -396,7 +424,7 @@ main {
 }
 
 /* Unsure state */
-.hero-unsure { animation: pulse-amber 3s ease-in-out infinite; }
+.hero-unsure, .hero-classifying { animation: pulse-amber 3s ease-in-out infinite; }
 @keyframes pulse-amber {
     0%, 100% { background: #111; }
     50% { background: #1a1500; }

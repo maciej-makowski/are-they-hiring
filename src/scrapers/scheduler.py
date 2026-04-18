@@ -105,7 +105,12 @@ async def classify_postings(
         force: If True, reclassify all postings. If False, only unclassified ones.
 
     Returns number of postings classified.
+    Returns 0 without any work if settings.classify_enabled is False.
     """
+    if not settings.classify_enabled:
+        logger.info("Classification disabled (CLASSIFY_ENABLED=false); skipping.")
+        return 0
+
     factory = session_factory or get_session_factory()
     now = datetime.now(UTC)
 

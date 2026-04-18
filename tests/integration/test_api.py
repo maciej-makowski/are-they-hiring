@@ -72,7 +72,8 @@ async def test_home_page_unsure_state(client):
 
 
 async def test_home_page_no_state(client, db_session):
-    """With 2+ successful scrapers returning 0 postings, state should be 'NO'."""
+    """With postings fetched today, all classified, none SWE -> 'NO'."""
+    today = date.today()
     for company in ["anthropic", "openai"]:
         run = ScrapeRun(
             id=uuid.uuid4(),
@@ -80,14 +81,79 @@ async def test_home_page_no_state(client, db_session):
             status="success",
             started_at=datetime.now(UTC),
             attempt_number=1,
-            postings_found=0,
+            postings_found=1,
         )
         db_session.add(run)
+        await db_session.flush()
+        db_session.add(
+            JobPosting(
+                id=uuid.uuid4(),
+                scrape_run_id=run.id,
+                company=company,
+                title="Product Manager",
+                location="SF",
+                url=f"https://{company}.com/pm",
+                first_seen_date=today,
+                last_seen_date=today,
+                is_software_engineering=False,
+                classified_at=datetime.now(UTC),
+            )
+        )
     await db_session.commit()
     response = await client.get("/")
     assert response.status_code == 200
     assert "NO" in response.text
     assert "hero-no" in response.text
+
+
+async def test_home_page_classifying_state(client, db_session):
+    """With postings fetched today but some unclassified -> 'classifying'."""
+    today = date.today()
+    run = ScrapeRun(
+        id=uuid.uuid4(),
+        company="anthropic",
+        status="success",
+        started_at=datetime.now(UTC),
+        attempt_number=1,
+        postings_found=2,
+    )
+    db_session.add(run)
+    await db_session.flush()
+    # One classified, one not
+    db_session.add(
+        JobPosting(
+            id=uuid.uuid4(),
+            scrape_run_id=run.id,
+            company="anthropic",
+            title="Marketing",
+            location="SF",
+            url="https://anthropic.com/mkt",
+            first_seen_date=today,
+            last_seen_date=today,
+            is_software_engineering=False,
+            classified_at=datetime.now(UTC),
+        )
+    )
+    db_session.add(
+        JobPosting(
+            id=uuid.uuid4(),
+            scrape_run_id=run.id,
+            company="anthropic",
+            title="Not yet classified",
+            location="SF",
+            url="https://anthropic.com/pending",
+            first_seen_date=today,
+            last_seen_date=today,
+            is_software_engineering=False,
+            classified_at=None,
+        )
+    )
+    await db_session.commit()
+    response = await client.get("/")
+    assert response.status_code == 200
+    assert "hero-classifying" in response.text
+    assert "classifying" in response.text.lower()
+    assert "1/2 classified" in response.text
 
 
 async def test_day_detail_page(client, db_session):

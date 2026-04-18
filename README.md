@@ -16,7 +16,7 @@ A satirical web app that scrapes job postings from Anthropic, OpenAI, and Google
 git clone <repo-url> && cd are-they-hiring
 uv sync --all-extras
 
-# 2. Start all services (PostgreSQL, Ollama w/ gemma2:2b, web app, scraper)
+# 2. Start all services (PostgreSQL, Ollama w/ gemma3:270m, web app, scraper)
 podman-compose -f podman-compose.dev.yml up -d
 
 # 3. Open in browser
@@ -139,7 +139,7 @@ This builds:
 - `are-they-hiring-web` — FastAPI app (runs migrations on start)
 - `are-they-hiring-scraper` — Scheduler + scrapers + classifier
 
-The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma4:e2b model baked in.
+The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma3:270m-it-qat model baked in.
 
 ## Configuration
 
@@ -154,7 +154,7 @@ Key settings:
 | Variable              | Default                | Description                      |
 |-----------------------|------------------------|----------------------------------|
 | `DATABASE_URL`        | `postgresql+asyncpg://arethey:changeme@...` | PostgreSQL connection |
-| `OLLAMA_MODEL`        | `gemma2:2b`            | LLM model for classification     |
+| `OLLAMA_MODEL`        | `gemma3:270m-it-qat`   | LLM model for classification     |
 | `OLLAMA_HOST`         | `http://localhost:11434` | Ollama API endpoint            |
 | `CLASSIFY_CONCURRENCY`| `4`                    | Parallel Ollama requests         |
 | `SCRAPE_SCHEDULE`     | `06:00,12:00,18:00`   | Cron times for scraping (UTC)    |
@@ -173,24 +173,89 @@ make revision msg="describe the change"
 
 ## Production Deployment (Raspberry Pi / Linux)
 
-Systemd quadlet units are provided in `podman/systemd/`. To deploy:
+Two deployment methods are available:
+
+### Raspberry Pi prerequisites
+
+Before deploying on a Pi, verify Podman is using the `overlay` storage driver, not `vfs`. `vfs` makes container operations catastrophically slow (full layer copies on every start).
 
 ```bash
-# Build images
-make build
-podman build -f Containerfile.ollama -t are-they-hiring-ollama .
+podman info | grep graphDriverName
+```
 
-# Copy quadlet units
-cp podman/systemd/* ~/.config/containers/systemd/
+If it reports `vfs`, switch to overlay. Edit `~/.config/containers/storage.conf`:
 
-# Create .env for the service
-mkdir -p ~/.config/are-they-hiring
-cp .env ~/.config/are-they-hiring/.env
-# Edit: set a real POSTGRES_PASSWORD
+```toml
+[storage]
+driver = "overlay"
 
-# Reload and start
-systemctl --user daemon-reload
+[storage.options.overlay]
+mount_program = "/usr/bin/fuse-overlayfs"
+```
+
+Install `fuse-overlayfs` if needed (`sudo apt install fuse-overlayfs`), then reset storage:
+
+```bash
+podman system reset --force
+podman info | grep graphDriverName  # should now report "overlay"
+```
+
+### Option A: podman-compose (works with Podman 4.3+)
+
+Best for Raspberry Pi and older systems. Requires `podman-compose` installed (`pip install podman-compose`).
+
+```bash
+# Build images and install systemd service
+make install-compose
+
+# Edit .env with real credentials
+nano ~/.config/are-they-hiring/.env
+
+# Start and enable on boot
+systemctl --user start are-they-hiring-compose.service
+systemctl --user enable are-they-hiring-compose.service
+
+# View logs
+journalctl --user -u are-they-hiring-compose.service -f
+
+# Uninstall (preserves data and .env)
+make uninstall-compose
+```
+
+### Option B: Quadlet units (requires Podman 4.4+)
+
+Native systemd integration, no podman-compose needed.
+
+```bash
+# Build images and install quadlet units
+make install
+
+# Edit .env with real credentials
+nano ~/.config/are-they-hiring/.env
+
+# Start
 systemctl --user start are-they-hiring-pod.service
+
+# View logs
+journalctl --user -u are-they-hiring-web.service -f
+
+# Uninstall (preserves data and .env)
+make uninstall
+```
+
+### GPU support
+
+GPU acceleration is disabled by default. To enable on NVIDIA systems:
+- **Quadlet:** Uncomment `AddDevice` and `OLLAMA_*` lines in `~/.config/containers/systemd/are-they-hiring-ollama.container`
+- **Compose:** Add `devices: [nvidia.com/gpu=all]` and GPU env vars to the ollama service in `~/.config/are-they-hiring/compose.yml`
+
+### Updating
+
+After pulling new code:
+```bash
+make build-all
+# Then restart: systemctl --user restart are-they-hiring-compose.service
+# Or for quadlets: systemctl --user restart are-they-hiring-pod.service
 ```
 
 ## Architecture
@@ -200,7 +265,7 @@ PostgreSQL ← Web (FastAPI + Jinja2) → Browser
      ↑
 Scraper (APScheduler) → Greenhouse/Ashby APIs
      ↓
-Ollama (gemma2:2b, GPU) → Classification
+Ollama (gemma3:270m, CPU/GPU) → Classification
 ```
 
 - **Web**: FastAPI serves HTMX/Jinja2 pages with Chart.js and confetti

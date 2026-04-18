@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     scrape_schedule: str = "06:00,12:00,18:00"
     scrape_retry_max: int = 3
     scrape_delay_seconds: int = 2
-    ollama_model: str = "gemma4:e2b"
+    ollama_model: str = "gemma3:270m-it-qat"
     ollama_host: str = "http://localhost:11434"
     ollama_timeout_seconds: float = 60.0
     classify_concurrency: int = 4

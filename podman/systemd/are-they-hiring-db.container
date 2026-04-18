@@ -6,10 +6,11 @@ After=are-they-hiring-pod.service
 [Container]
 Image=docker.io/postgres:16
 Pod=are-they-hiring.pod
-Environment=POSTGRES_USER=arethey
-Environment=POSTGRES_PASSWORD=changeme
-Environment=POSTGRES_DB=arethey
+EnvironmentFile=%h/.config/are-they-hiring/.env
 Volume=are-they-hiring-db-data:/var/lib/postgresql/data
+
+[Service]
+Restart=always
 
 [Install]
 WantedBy=default.target

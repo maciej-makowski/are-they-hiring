@@ -151,3 +151,27 @@ async def test_reclassify_postings(session_factory):
     swe = next(p for p in postings if p.title == "Software Engineer")
     assert swe.is_software_engineering is False
     assert pm.is_software_engineering is True
+
+
+@pytest.mark.asyncio
+async def test_classify_postings_disabled(session_factory):
+    """When CLASSIFY_ENABLED is false, classify_postings is a no-op."""
+    with patch.dict(SCRAPERS, {"fake": FakeScraper}):
+        await fetch_and_save("fake", session_factory)
+
+    mock_classify = AsyncMock()
+    with (
+        patch("src.scrapers.scheduler.settings") as mock_settings,
+        patch("src.scrapers.scheduler.classify_titles", mock_classify),
+    ):
+        mock_settings.classify_enabled = False
+        count = await classify_postings(company="fake", session_factory=session_factory)
+
+    assert count == 0
+    mock_classify.assert_not_called()
+
+    # Postings remain unclassified
+    async with session_factory() as session:
+        res = await session.execute(select(JobPosting).where(JobPosting.company == "fake"))
+        postings = list(res.scalars().all())
+    assert all(p.classified_at is None for p in postings)

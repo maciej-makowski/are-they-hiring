@@ -13,9 +13,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from src.db.models import JobPosting, ScrapeRun
+from src.scrapers.scheduler import SCRAPERS
 from src.web.app import create_app
 
-COMPANIES = ("anthropic", "openai", "deepmind")
+COMPANIES = tuple(SCRAPERS.keys())
+TOTAL_COMPANIES = len(COMPANIES)
 
 
 # --- fixtures / factories --------------------------------------------------
@@ -171,7 +173,7 @@ class TestHeroNo:
         assert "siren" in response.text  # the alarm visual
 
     async def test_hero_no_with_two_successful_scrapers(self, client, db_session):
-        """Only two out of three scrapers need to succeed to move from unsure -> no."""
+        """Only two scrapers need to succeed to move from unsure -> no (threshold is >=2)."""
         for company in ("anthropic", "openai"):
             await _seed_run_with_postings(
                 db_session,
@@ -228,7 +230,7 @@ class TestHeroUnsure:
         assert response.status_code == 200
         assert "hero-unsure" in response.text
         assert "Unsure yet, still checking" in response.text
-        assert "0/3 scrapers finished" in response.text
+        assert f"0/{TOTAL_COMPANIES} scrapers finished" in response.text
 
     async def test_hero_unsure_while_scrapers_running(self, client, db_session):
         """Scrapers still running, no postings yet -> hero-unsure with 'running' badge."""
@@ -238,8 +240,8 @@ class TestHeroUnsure:
         response = await client.get("/")
         assert response.status_code == 200
         assert "hero-unsure" in response.text
-        assert "0/3 scrapers finished" in response.text
-        assert "3 running" in response.text
+        assert f"0/{TOTAL_COMPANIES} scrapers finished" in response.text
+        assert f"{TOTAL_COMPANIES} running" in response.text
 
     async def test_hero_unsure_when_only_one_scraper_succeeded(self, client, db_session):
         """One success isn't enough to claim 'NO' — still unsure."""
@@ -251,10 +253,10 @@ class TestHeroUnsure:
         response = await client.get("/")
         assert response.status_code == 200
         assert "hero-unsure" in response.text
-        assert "1/3 scrapers finished" in response.text
+        assert f"1/{TOTAL_COMPANIES} scrapers finished" in response.text
 
     async def test_hero_unsure_when_all_scrapers_failed(self, client, db_session):
-        """All three scrapers failed -> hero-unsure with '3 failed' indicator."""
+        """Every scraper failed -> hero-unsure with N-failed indicator."""
         for company in COMPANIES:
             db_session.add(
                 _make_scrape_run(
@@ -269,8 +271,8 @@ class TestHeroUnsure:
         assert response.status_code == 200
         assert "hero-unsure" in response.text
         assert "Unsure yet, still checking" in response.text
-        assert "3 failed" in response.text
-        assert "0/3 scrapers finished" in response.text
+        assert f"{TOTAL_COMPANIES} failed" in response.text
+        assert f"0/{TOTAL_COMPANIES} scrapers finished" in response.text
 
     async def test_hero_unsure_mixed_company_states(self, client, db_session):
         """One succeeded, one failed, one running -> still unsure, badges reflect mix."""
@@ -292,7 +294,7 @@ class TestHeroUnsure:
         response = await client.get("/")
         assert response.status_code == 200
         assert "hero-unsure" in response.text
-        assert "1/3 scrapers finished" in response.text
+        assert f"1/{TOTAL_COMPANIES} scrapers finished" in response.text
         assert "1 running" in response.text
         assert "1 failed" in response.text
 
@@ -475,7 +477,7 @@ class TestFailureModes:
         assert response.status_code == 200
         # With no JobPosting rows active today, we stay unsure even though scrapes succeeded.
         assert "hero-unsure" in response.text
-        assert "2/3 scrapers finished" in response.text
+        assert f"2/{TOTAL_COMPANIES} scrapers finished" in response.text
         # /scrapes still reflects the raw postings_found value (surfacing dedup activity).
         scrapes = await client.get("/scrapes")
         assert scrapes.status_code == 200

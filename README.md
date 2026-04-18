@@ -2,6 +2,8 @@
 
 A satirical web app that scrapes job postings from Anthropic, OpenAI, and Google DeepMind, classifies them using a local LLM, and displays whether Big AI is still hiring software engineers — with a countdown since Dario Amodei claimed AI would replace all software engineers.
 
+> **Contributing?** Read [`AGENTS.md`](AGENTS.md) first — it lays out the repo conventions (branches, commits, tests, docs) both humans and AI agents should follow.
+
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/) (Python package manager)

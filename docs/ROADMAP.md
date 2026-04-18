@@ -1,12 +1,14 @@
 # Roadmap
 
-Backlog of larger features we want to tackle, beyond the small polish items in the README's "Next Steps" section.
+Backlog of larger features we want to tackle.
+
+Each item has a linked GitHub issue — attach context (logs, screenshots, examples) there rather than to this document. This file is the high-level shape; issues hold the ongoing details.
 
 Each item lists rough scope, dependencies, and any open questions. Items aren't strictly ordered — pick based on current needs.
 
 ---
 
-## 1. Classifier tuning harness (MLE pipeline)
+## 1. Classifier tuning harness (MLE pipeline) — [#17](https://github.com/maciej-makowski/are-they-hiring/issues/17)
 
 **Goal:** systematically improve classification accuracy on a bigger/better-tuned prompt or model by comparing candidates against a trusted reference.
 
@@ -30,7 +32,7 @@ Each item lists rough scope, dependencies, and any open questions. Items aren't 
 
 ---
 
-## 2. Telemetry & structured logging
+## 2. Telemetry & structured logging — [#18](https://github.com/maciej-makowski/are-they-hiring/issues/18)
 
 **Goal:** better visibility into the running app, especially on the Pi where things are opaque.
 
@@ -52,7 +54,7 @@ Each item lists rough scope, dependencies, and any open questions. Items aren't 
 
 ---
 
-## 3. Raspberry Pi crash investigation
+## 3. Raspberry Pi crash investigation — [#19](https://github.com/maciej-makowski/are-they-hiring/issues/19)
 
 **Goal:** find and fix the cause of app crashes on the Pi.
 
@@ -72,7 +74,7 @@ Each item lists rough scope, dependencies, and any open questions. Items aren't 
 
 ---
 
-## 4. Integration test coverage for UI states
+## 4. Integration test coverage for UI states — [#20](https://github.com/maciej-makowski/are-they-hiring/issues/20)
 
 **Goal:** catch regressions in the nuanced state handling on home page and day detail.
 
@@ -98,7 +100,7 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 
 ---
 
-## 5. Admin observability dashboard
+## 5. Admin observability dashboard — [#21](https://github.com/maciej-makowski/are-they-hiring/issues/21)
 
 **Goal:** surface operational state in the UI — not just for the user, but for us when something goes wrong.
 
@@ -118,7 +120,7 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 
 ---
 
-## 6. More companies
+## 6. More companies — [#22](https://github.com/maciej-makowski/are-they-hiring/issues/22)
 
 **Goal:** expand the scraper coverage beyond the original three.
 
@@ -147,9 +149,9 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 
 Smaller items that don't warrant their own top-level entry:
 
-- **Sound effects.** Replace empty placeholder MP3s in `src/web/static/sounds/` with actual audio — a fanfare for YES, an alarm for NO. Keep the files small (a few KB each).
-- **Starlette deprecation.** Update `TemplateResponse(name, {request: ...})` calls to the new `TemplateResponse(request, name)` signature. Warnings currently show in test output.
-- **Classifier prompt refinement.** Before or instead of (1), iterate on the prompt string in `src/classifier/client.py` and fix obvious mis-classifications (e.g. "Developer Community Lead", "Finance Systems Integration Engineer"). Cheap and fast, may defer need for (1).
+- **Sound effects.** [#23](https://github.com/maciej-makowski/are-they-hiring/issues/23) — Replace empty placeholder MP3s in `src/web/static/sounds/` with actual audio.
+- **Starlette deprecation.** [#25](https://github.com/maciej-makowski/are-they-hiring/issues/25) — Update `TemplateResponse` calls to the new signature.
+- **Classifier prompt refinement.** [#24](https://github.com/maciej-makowski/are-they-hiring/issues/24) — Iterate on the prompt string to fix obvious mis-classifications. Cheap alternative to the full harness (1).
 
 ---
 

@@ -181,7 +181,6 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 Smaller items that don't warrant their own top-level entry:
 
 - **Sound effects.** [#23](https://github.com/maciej-makowski/are-they-hiring/issues/23) — Replace empty placeholder MP3s in `src/web/static/sounds/` with actual audio.
-- **Starlette deprecation.** [#25](https://github.com/maciej-makowski/are-they-hiring/issues/25) — Update `TemplateResponse` calls to the new signature.
 - **Classifier prompt refinement.** [#24](https://github.com/maciej-makowski/are-they-hiring/issues/24) — Iterate on the prompt string to fix obvious mis-classifications. Cheap alternative to the full harness (1).
 
 ---

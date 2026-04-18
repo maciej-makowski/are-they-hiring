@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     scrape_delay_seconds: int = 2
     ollama_model: str = "gemma4:e2b"
     ollama_host: str = "http://localhost:11434"
+    ollama_timeout_seconds: float = 60.0
     classify_concurrency: int = 4
     anthropic_careers_url: str = "https://www.anthropic.com/careers"
     openai_careers_url: str = "https://openai.com/careers"

@@ -95,9 +95,9 @@ def create_app(db_session_override=None) -> FastAPI:
         months = delta.days // 30
         days_r = delta.days % 30
         return templates.TemplateResponse(
+            request,
             "home.html",
             {
-                "request": request,
                 "state": state,
                 "count": summary["posting_count"],
                 "calendar_weeks": calendar_weeks,
@@ -122,9 +122,9 @@ def create_app(db_session_override=None) -> FastAPI:
 
         scraped = len(scrape_runs) > 0
         return templates.TemplateResponse(
+            request,
             "day_detail.html",
             {
-                "request": request,
                 "target_date": parsed_date,
                 "postings": postings,
                 "by_company": by_company,
@@ -138,6 +138,6 @@ def create_app(db_session_override=None) -> FastAPI:
     @app.get("/scrapes")
     async def scrape_status(request: Request, session: AsyncSession = Depends(get_session)):
         runs = await get_recent_scrape_runs(session)
-        return templates.TemplateResponse("scrape_status.html", {"request": request, "runs": runs})
+        return templates.TemplateResponse(request, "scrape_status.html", {"runs": runs})
 
     return app

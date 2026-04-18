@@ -52,13 +52,13 @@
             {% for day in week %}
                 {% if day %}
                 <a href="/day/{{ day.date }}"
-                   class="calendar-day {% if day.count > 0 %}day-green{% elif day.classifying %}day-classifying{% elif day.scraped %}day-red{% else %}day-amber{% endif %} {% if not day.in_current_month %}day-faded{% endif %}">
+                   class="calendar-day {% if day.count > 0 %}day-green{% elif not day.scraped %}day-amber{% elif day.classifying %}day-classifying{% else %}day-red{% endif %} {% if not day.in_current_month %}day-faded{% endif %}">
                     <span class="day-num">{{ day.day_num }}</span>
                     <span class="day-icon">
                         {%- if day.count > 0 -%}&#10003;
+                        {%- elif not day.scraped -%}?
                         {%- elif day.classifying -%}<span class="spinner"></span>
-                        {%- elif day.scraped -%}&#9888;
-                        {%- else -%}?{%- endif -%}
+                        {%- else -%}&#9888;{%- endif -%}
                     </span>
                     {% if day.count > 0 %}
                     <span class="day-count">{{ day.count }}</span>

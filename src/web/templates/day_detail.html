@@ -53,7 +53,7 @@
 {% endfor %}
 {% endif %}
 
-{% if total == 0 and unclassified > 0 %}
+{% if scraped and total == 0 and unclassified > 0 %}
 <script>setTimeout(() => location.reload(), 10000);</script>
 {% endif %}
 {% endblock %}

@@ -10,13 +10,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
-    restart: always
 
   ollama:
     image: localhost/are-they-hiring-ollama:latest
     env_file: .env
     cpus: ${OLLAMA_CPUS:-3.0}
-    restart: always
 
   web:
     image: localhost/are-they-hiring-web:latest
@@ -26,7 +24,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
 
   scraper:
     image: localhost/are-they-hiring-scraper:latest
@@ -34,7 +31,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    restart: always
 
 volumes:
   arethey-db-data:

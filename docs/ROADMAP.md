@@ -145,6 +145,37 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 
 ---
 
+## 7. Public internet deployment — [#26](https://github.com/maciej-makowski/are-they-hiring/issues/26)
+
+**Goal:** make the app reachable from the internet on a proper domain (e.g. `aretheyhiringse.maciek.dev`) with HTTPS, while keeping the attack surface small.
+
+**Options to evaluate:**
+
+- **A. RPi at home + Cloudflare Tunnel.** Free; uses existing hardware; no inbound ports exposed; CF handles HTTPS/DDoS. Downside: depends on home internet and Pi reliability (see #19). Quick-tunnel already works end-to-end.
+- **B. Small VPS (Hetzner CAX11, ARM64 4 GB, ~€4/mo).** Always-on, dedicated; ARM images already work. Requires standard server hardening (SSH keys only, fail2ban, unattended-upgrades, firewall, backups).
+- **C. VPS with GPU (~€40/mo+).** Faster classification; overkill for this app's load.
+- **D. PaaS (Fly.io, Railway, Render).** Zero-ops, but Ollama doesn't fit well — would push classification to a cloud LLM and change the architecture.
+- **E. Hybrid: cheap VPS + cloud LLM API.** No Ollama to babysit; recurring per-request cost; external dependency.
+
+**Security considerations (regardless of option):**
+- HTTPS-only + HSTS.
+- Strong Postgres password (`.env` template already prompts).
+- Decide: is `/scrapes` admin page public, or does it need basic auth?
+- Secrets never in git — rely on systemd `EnvironmentFile` or equivalent.
+- Postgres volume backups.
+- Rate limiting / bot protection (CF covers most of this in option A).
+
+**Open questions:**
+- Domain: `aretheyhiringse.maciek.dev` (already discussed).
+- DNS provider: stay with current registrar (CNAME to CF) or move to Cloudflare DNS.
+- Does the UI stay fully public, or lock down the admin views?
+
+**Recommendation:** start with (A), move to (B) if the Pi proves unreliable.
+
+**Depends on:** (3) being resolved before (A) is production-ready.
+
+---
+
 ## Polish & maintenance backlog
 
 Smaller items that don't warrant their own top-level entry:
@@ -162,3 +193,4 @@ Smaller items that don't warrant their own top-level entry:
 - **(2)** and **(5)** overlap; decide whether to do them together or sequence 2 → 5.
 - **(1)** is the biggest. Needs brainstorming before any code. Can wait until the infrastructure work is stable.
 - **(6)** and the polish items can be picked up any time as filler work.
+- **(7)** is gated on (3) for option A (home Pi must be stable first), independent otherwise.

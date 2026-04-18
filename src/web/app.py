@@ -73,12 +73,15 @@ def create_app(db_session_override=None) -> FastAPI:
             calendar_weeks.append(week)
 
         # Determine display state:
-        # "yes"     - at least one scraper finished and found SWE postings
-        # "no"      - at least 2/3 scrapers succeeded and all returned 0
-        # "unsure"  - scrapers still running or not enough data
+        # "yes"         - at least one scraper finished and found SWE postings
+        # "classifying" - postings fetched but some not yet classified
+        # "no"          - all of today's postings classified, none are SWE
+        # "unsure"      - scrapers still running or haven't run today
         if summary["has_postings"]:
             state = "yes"
-        elif summary["succeeded"] >= 2 and not summary["has_postings"]:
+        elif summary["unclassified_today"] > 0:
+            state = "classifying"
+        elif summary["succeeded"] >= 2 and summary["active_today_total"] > 0:
             state = "no"
         else:
             state = "unsure"

@@ -199,6 +199,18 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
         if count > 0:
             break
 
+    # Classification stats for postings active today
+    active_today_stmt = select(func.count(JobPosting.id)).where(
+        JobPosting.first_seen_date <= today,
+        JobPosting.last_seen_date >= today,
+    )
+    active_today_result = await session.execute(active_today_stmt)
+    active_today_total = active_today_result.scalar() or 0
+
+    unclassified_today_result = await session.execute(active_today_stmt.where(JobPosting.classified_at.is_(None)))
+    unclassified_today = unclassified_today_result.scalar() or 0
+    classified_today = active_today_total - unclassified_today
+
     return {
         "succeeded": succeeded,
         "running": running,
@@ -206,4 +218,7 @@ async def get_todays_scrape_summary(session: AsyncSession) -> dict:
         "total_companies": len(companies),
         "has_postings": count > 0,
         "posting_count": count,
+        "active_today_total": active_today_total,
+        "classified_today": classified_today,
+        "unclassified_today": unclassified_today,
     }

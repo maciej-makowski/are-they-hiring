@@ -396,7 +396,7 @@ main {
 }
 
 /* Unsure state */
-.hero-unsure { animation: pulse-amber 3s ease-in-out infinite; }
+.hero-unsure, .hero-classifying { animation: pulse-amber 3s ease-in-out infinite; }
 @keyframes pulse-amber {
     0%, 100% { background: #111; }
     50% { background: #1a1500; }

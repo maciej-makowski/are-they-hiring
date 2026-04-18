@@ -19,6 +19,13 @@
         <p class="answer answer-no">NO</p>
         <p class="warning-icon">&#9888;</p>
         <p class="subtitle">No software engineering positions found</p>
+    {% elif state == "classifying" %}
+        <p class="answer answer-unsure">&#8230;</p>
+        <p class="subtitle unsure-subtitle">Still checking &mdash; classifying today's postings</p>
+        <div class="scrape-progress-summary">
+            <span>{{ scrape_summary.classified_today }}/{{ scrape_summary.active_today_total }} classified</span>
+            <span class="status-running">&bull; {{ scrape_summary.unclassified_today }} remaining</span>
+        </div>
     {% else %}
         <p class="answer answer-unsure">&#8230;</p>
         <p class="subtitle unsure-subtitle">Unsure yet, still checking</p>
@@ -63,7 +70,7 @@
     </div>
 </section>
 
-{% if state == "unsure" %}
+{% if state == "unsure" or state == "classifying" %}
 <script>setTimeout(() => location.reload(), 10000);</script>
 {% endif %}
 {% endblock %}

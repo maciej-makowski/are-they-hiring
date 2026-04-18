@@ -176,6 +176,27 @@ Also re-validate the Playwright E2E suite as part of this work — it hasn't bee
 
 ---
 
+## 8. Per-day posting observation tracking — [#30](https://github.com/maciej-makowski/are-they-hiring/issues/30)
+
+**Goal:** record which specific days we observed each posting, rather than inferring presence from a `[first_seen_date, last_seen_date]` range.
+
+**Shape:**
+- New `posting_observation(posting_id, date, scrape_run_id)` table with composite key `(posting_id, date)`.
+- Written on every `upsert_postings` call — new *and* re-seen postings both get a row.
+- Calendar / home-state queries use observations where available.
+- `first_seen_date` / `last_seen_date` become denormalised cache columns or are dropped.
+
+**Why it matters:** today, if scraping was skipped on a day in the middle of a posting's range, the calendar and home-state queries still treat the posting as active on that day. Can't distinguish observed from inferred. Blocks churn metrics, honest calendar semantics, and dashboards that need per-day truth.
+
+**Open questions:**
+- Backfill strategy for existing postings — mark as inferred?
+- Storage / retention policy (O(postings × days) rows).
+- Design schema jointly with (2) + (5) so dashboards are built against it from day one.
+
+**Related:** (2), (5). Not blocking anything else today.
+
+---
+
 ## Polish & maintenance backlog
 
 Smaller items that don't warrant their own top-level entry:
@@ -192,4 +213,5 @@ Smaller items that don't warrant their own top-level entry:
 - **(2)** and **(5)** overlap; decide whether to do them together or sequence 2 → 5.
 - **(1)** is the biggest. Needs brainstorming before any code. Can wait until the infrastructure work is stable.
 - **(6)** and the polish items can be picked up any time as filler work.
+- **(8)** is independent; best designed jointly with (2) and (5) to avoid schema churn.
 - **(7)** is gated on (3) for option A (home Pi must be stable first), independent otherwise.

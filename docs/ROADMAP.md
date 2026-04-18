@@ -92,6 +92,8 @@ Each item lists rough scope, dependencies, and any open questions. Items aren't 
 - Prefer pytest fixtures/factories or a seed SQL file?
 - Snapshot HTML in golden files, or assert specific CSS classes/text?
 
+Also re-validate the Playwright E2E suite as part of this work — it hasn't been run against the current UI since the calendar + classifying-state changes landed.
+
 **Relatively self-contained. Independent from the others.**
 
 ---
@@ -105,6 +107,7 @@ Each item lists rough scope, dependencies, and any open questions. Items aren't 
 - Aggregate dashboard: success/failure counts, average durations, error-rate over time.
 - Classification event log: record each classification attempt to a new table (title, model, timestamp, duration, result) and surface it.
 - Charts over time: scrape success rate, classification throughput, pending classification queue depth.
+- Longer-range trend chart of SWE postings (weekly/monthly) — complements the 30-day calendar on the home page.
 
 **Open questions:**
 - New table or extend `scrape_runs`?
@@ -115,9 +118,45 @@ Each item lists rough scope, dependencies, and any open questions. Items aren't 
 
 ---
 
+## 6. More companies
+
+**Goal:** expand the scraper coverage beyond the original three.
+
+**Candidates:**
+- xAI
+- Meta AI (FAIR)
+- Mistral
+- Cohere
+- Perplexity
+- Inflection (if still hiring independently)
+
+**Shape:**
+- Each company is a new scraper subclass. Most use Greenhouse or Ashby — same parsers as existing ones.
+- Refactor `SCRAPERS` registry to be discovered/configurable rather than hardcoded.
+- Home page copy update — "Is Big AI still hiring Software Engineers?" already generic enough, but company list in subtitles may need tweaks.
+
+**Open questions:**
+- Where does "Big AI" end? Stay at the frontier labs, or include applied-AI startups?
+- Do we add all at once or grow gradually?
+
+**Independent. Small-to-medium per company, multiplies with list length.**
+
+---
+
+## Polish & maintenance backlog
+
+Smaller items that don't warrant their own top-level entry:
+
+- **Sound effects.** Replace empty placeholder MP3s in `src/web/static/sounds/` with actual audio — a fanfare for YES, an alarm for NO. Keep the files small (a few KB each).
+- **Starlette deprecation.** Update `TemplateResponse(name, {request: ...})` calls to the new `TemplateResponse(request, name)` signature. Warnings currently show in test output.
+- **Classifier prompt refinement.** Before or instead of (1), iterate on the prompt string in `src/classifier/client.py` and fix obvious mis-classifications (e.g. "Developer Community Lead", "Finance Systems Integration Engineer"). Cheap and fast, may defer need for (1).
+
+---
+
 ## Dependencies and suggested order
 
 - **(3)** is blocking (app is crashing) and small — do first once logs are available.
 - **(4)** is independent and safe to start anytime.
 - **(2)** and **(5)** overlap; decide whether to do them together or sequence 2 → 5.
 - **(1)** is the biggest. Needs brainstorming before any code. Can wait until the infrastructure work is stable.
+- **(6)** and the polish items can be picked up any time as filler work.

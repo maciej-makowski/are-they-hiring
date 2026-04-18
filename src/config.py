@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     ollama_host: str = "http://localhost:11434"
     ollama_timeout_seconds: float = 60.0
     classify_concurrency: int = 4
+    classify_enabled: bool = True
     anthropic_careers_url: str = "https://www.anthropic.com/careers"
     openai_careers_url: str = "https://openai.com/careers"
     deepmind_careers_url: str = "https://deepmind.google/about/careers/"

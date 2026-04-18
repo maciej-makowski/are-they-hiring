@@ -62,6 +62,7 @@ async def get_daily_counts(
       - date: the date
       - count: number of SWE postings active on that day
       - scraped: whether at least one successful scrape ran that day
+      - classifying: postings active on this day have classified_at IS NULL
     """
     today = date.today()
     results = []
@@ -79,6 +80,16 @@ async def get_daily_counts(
         )
         count = count_result.scalar()
 
+        # Count unclassified postings active on this day
+        unclassified_result = await session.execute(
+            select(func.count(JobPosting.id)).where(
+                JobPosting.first_seen_date <= d,
+                JobPosting.last_seen_date >= d,
+                JobPosting.classified_at.is_(None),
+            )
+        )
+        classifying = (unclassified_result.scalar() or 0) > 0
+
         # Check if any successful scrape ran on this day
         day_start = datetime.combine(d, datetime.min.time(), tzinfo=UTC)
         day_end = datetime.combine(d + timedelta(days=1), datetime.min.time(), tzinfo=UTC)
@@ -91,9 +102,21 @@ async def get_daily_counts(
         )
         scraped = (scrape_result.scalar() or 0) > 0
 
-        results.append({"date": d, "count": count, "scraped": scraped})
+        results.append({"date": d, "count": count, "scraped": scraped, "classifying": classifying})
 
     return results
+
+
+async def get_unclassified_count_for_date(session: AsyncSession, target_date: date) -> int:
+    """Count postings active on target_date that haven't been classified yet."""
+    result = await session.execute(
+        select(func.count(JobPosting.id)).where(
+            JobPosting.first_seen_date <= target_date,
+            JobPosting.last_seen_date >= target_date,
+            JobPosting.classified_at.is_(None),
+        )
+    )
+    return result.scalar() or 0
 
 
 async def get_postings_for_date(

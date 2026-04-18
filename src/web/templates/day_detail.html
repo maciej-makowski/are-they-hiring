@@ -9,6 +9,11 @@
     <span class="day-status-icon">?</span>
     <p>No scraping was performed on this date. There is no data available.</p>
 </div>
+{% elif total == 0 and unclassified > 0 %}
+<div class="day-status day-status-amber">
+    <span class="day-status-icon"><span class="spinner spinner-lg"></span></span>
+    <p>Still checking &mdash; {{ unclassified }} posting{{ 's' if unclassified != 1 else '' }} pending classification.</p>
+</div>
 {% elif total == 0 %}
 <div class="day-status day-status-red">
     <span class="day-status-icon">&#9888;</span>
@@ -46,5 +51,9 @@
     </div>
 </div>
 {% endfor %}
+{% endif %}
+
+{% if total == 0 and unclassified > 0 %}
+<script>setTimeout(() => location.reload(), 10000);</script>
 {% endif %}
 {% endblock %}

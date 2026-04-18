@@ -43,7 +43,12 @@ def create_app(db_session_override=None) -> FastAPI:
         raw_counts = await get_daily_counts(session)
         # Build a lookup by date string
         day_data = {
-            d["date"].isoformat(): {"date": d["date"].isoformat(), "count": d["count"], "scraped": d["scraped"]}
+            d["date"].isoformat(): {
+                "date": d["date"].isoformat(),
+                "count": d["count"],
+                "scraped": d["scraped"],
+                "classifying": d["classifying"],
+            }
             for d in raw_counts
         }
 
@@ -60,7 +65,7 @@ def create_app(db_session_override=None) -> FastAPI:
         d = start
         while d <= today:
             iso = d.isoformat()
-            entry = day_data.get(iso, {"date": iso, "count": 0, "scraped": False})
+            entry = day_data.get(iso, {"date": iso, "count": 0, "scraped": False, "classifying": False})
             entry["in_current_month"] = d.month == current_month
             entry["day_num"] = d.day
             entry["weekday"] = d.strftime("%a")
@@ -105,11 +110,12 @@ def create_app(db_session_override=None) -> FastAPI:
 
     @app.get("/day/{target_date}")
     async def day_detail(request: Request, target_date: str, session: AsyncSession = Depends(get_session)):
-        from src.db.queries import get_scrape_runs_for_date
+        from src.db.queries import get_scrape_runs_for_date, get_unclassified_count_for_date
 
         parsed_date = date.fromisoformat(target_date)
         postings = await get_postings_for_date(session, parsed_date)
         scrape_runs = await get_scrape_runs_for_date(session, parsed_date)
+        unclassified = await get_unclassified_count_for_date(session, parsed_date)
         by_company: dict[str, list] = {}
         for p in postings:
             by_company.setdefault(p.company, []).append(p)
@@ -125,6 +131,7 @@ def create_app(db_session_override=None) -> FastAPI:
                 "total": len(postings),
                 "scraped": scraped,
                 "scrape_runs": scrape_runs,
+                "unclassified": unclassified,
             },
         )
 

@@ -2,6 +2,8 @@
 
 A satirical web app that scrapes job postings from Anthropic, OpenAI, and Google DeepMind, classifies them using a local LLM, and displays whether Big AI is still hiring software engineers — with a countdown since Dario Amodei claimed AI would replace all software engineers.
 
+> **Contributing?** Read [`AGENTS.md`](AGENTS.md) first — it lays out the repo conventions (branches, commits, tests, docs) both humans and AI agents should follow.
+
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
@@ -275,11 +277,6 @@ Ollama (gemma3:270m, CPU/GPU) → Classification
 
 See `Implementation.md` for detailed design decisions and rationale.
 
-## Next Steps
+## Roadmap
 
-- **Classification quality**: Review edge cases (e.g., "Developer Community Lead", "Finance Systems Integration Engineer") and refine the Ollama prompt or try a larger model
-- **Sound effects**: Replace empty placeholder MP3s (`src/web/static/sounds/`) with actual audio — a fanfare for YES, an alarm for NO
-- **E2E tests**: Run the Playwright E2E suite against the live dev environment (`make test-env-up && make test-e2e`)
-- **Fix Starlette deprecation**: Update `TemplateResponse(name, {request: ...})` calls to the new `TemplateResponse(request, name)` signature
-- **More companies**: Add scrapers for additional AI companies (xAI, Meta AI, etc.)
-- **Historical charts**: Improve the daily counts chart to show trends over weeks/months
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the backlog of planned features and maintenance items.

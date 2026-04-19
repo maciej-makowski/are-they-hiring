@@ -5,17 +5,22 @@ import httpx
 from src.scrapers.base import BaseScraper
 
 
-class MetaAIScraper(BaseScraper):
+class MetaScraper(BaseScraper):
     company = "meta"
     api_url = "https://www.metacareers.com/graphql"
 
     # Meta's careers frontend issues a GraphQL "CareersJobSearchResultsQuery" against
     # this endpoint. `doc_id` is the persisted-query hash published by their bundle.
     # If Meta changes the hash, fetches will 4xx — the scrape_runs table captures that.
+    #
+    # `teams` / `sub_teams` left empty => all Meta roles across every team, not just
+    # the AI / FAIR team. The endpoint returns the full result set in a single
+    # response and signals completion via `extensions.is_final = true`, so no
+    # cursor-based pagination is needed at the current size (~600 open roles).
     _doc_id = "9114524511922157"
     _search_input = {
         "q": "",
-        "teams": ["Artificial Intelligence"],
+        "teams": [],
         "offices": [],
         "divisions": [],
         "roles": [],

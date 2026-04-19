@@ -10,7 +10,7 @@
 ## Decision Log
 
 ### 1. Target Companies
-**Decision:** Anthropic, OpenAI, Google DeepMind, xAI (added 2026-04-18), Perplexity (added 2026-04-18), Meta AI / FAIR (added 2026-04-18)
+**Decision:** Anthropic, OpenAI, Google DeepMind, xAI (added 2026-04-18), Perplexity (added 2026-04-18), Meta (added 2026-04-18 — initially AI/FAIR only, broadened to all teams 2026-04-18, see #38)
 **Rationale:** The most prominent AI companies making bold claims about AI replacing software engineers. Direct relevance to the project's satirical premise. Additional labs can be added incrementally via the `SCRAPERS` registry; see roadmap item 6 for the remaining candidates.
 
 ### 2. Frontend Technology
@@ -29,7 +29,7 @@
 - DeepMind: Greenhouse API (`boards-api.greenhouse.io/v1/boards/deepmind/jobs`)
 - xAI: Greenhouse API (`boards-api.greenhouse.io/v1/boards/xai/jobs`)
 - Perplexity: Ashby API (`api.ashbyhq.com/posting-api/job-board/perplexity`)
-- Meta AI / FAIR: metacareers GraphQL (`metacareers.com/graphql` with `doc_id=9114524511922157`, filtered to the "Artificial Intelligence" team). More fragile than Greenhouse/Ashby — if Meta rebuilds their frontend the `doc_id` changes — but the only usable JSON surface on metacareers.com.
+- Meta: metacareers GraphQL (`metacareers.com/graphql` with `doc_id=9114524511922157`, all teams — `teams=[]` / `sub_teams=[]`). Initially scoped to the "Artificial Intelligence" team only; broadened in #38 because the narrow SWE classifier rejects AI-team roles by design, yielding a boring "0 SWE at Meta". Unfiltered, the endpoint returns the full result set (~600 roles) in a single response and signals completion via `extensions.is_final=true`, so no cursor-based pagination is required. More fragile than Greenhouse/Ashby — if Meta rebuilds their frontend the `doc_id` changes — but the only usable JSON surface on metacareers.com.
 **Rationale:** JSON APIs are faster, lighter (no browser/Chromium needed), more reliable, and return structured data. The scraper container went from ~1.3GB (with Chromium) to ~580MB. Playwright is no longer a runtime dependency for scraping.
 
 ### 4. Job Title Classification
@@ -251,7 +251,7 @@ CLASSIFY_CONCURRENCY=4
 # DeepMind:   boards-api.greenhouse.io/v1/boards/deepmind/jobs
 # xAI:        boards-api.greenhouse.io/v1/boards/xai/jobs
 # Perplexity: api.ashbyhq.com/posting-api/job-board/perplexity
-# Meta AI:    metacareers.com/graphql (POST, doc_id 9114524511922157, teams=["Artificial Intelligence"])
+# Meta:       metacareers.com/graphql (POST, doc_id 9114524511922157, teams=[] / sub_teams=[] — all roles)
 ```
 
 ---
@@ -318,7 +318,7 @@ are-they-hiring/
 │   │   ├── deepmind.py                # Greenhouse API parser
 │   │   ├── xai.py                     # Greenhouse API parser
 │   │   ├── perplexity.py              # Ashby API parser (thin subclass of openai_scraper)
-│   │   ├── meta_ai.py                  # metacareers GraphQL parser (doc_id persisted-query)
+│   │   ├── meta.py                     # metacareers GraphQL parser (doc_id persisted-query, all teams)
 │   │   └── scheduler.py               # fetch/classify/reclassify + APScheduler
 │   └── web/
 │       ├── app.py                     # FastAPI app factory + routes

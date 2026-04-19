@@ -1,6 +1,6 @@
 # Are They Still Hiring Software Engineers?
 
-A satirical web app that scrapes job postings from Anthropic, OpenAI, Google DeepMind, xAI, Perplexity, and Meta AI, classifies them using a local LLM, and displays whether Big AI is still hiring software engineers — with a countdown since Dario Amodei claimed AI would replace all software engineers.
+A satirical web app that scrapes job postings from Anthropic, OpenAI, Google DeepMind, xAI, Perplexity, and Meta, classifies them using a local LLM, and displays whether Big AI is still hiring software engineers — with a countdown since Dario Amodei claimed AI would replace all software engineers.
 
 > **Contributing?** Read [`AGENTS.md`](AGENTS.md) first — it lays out the repo conventions (branches, commits, tests, docs) both humans and AI agents should follow.
 
@@ -275,7 +275,7 @@ Ollama (gemma3:270m, CPU/GPU) → Classification
 ```
 
 - **Web**: FastAPI serves HTMX/Jinja2 pages with Chart.js and confetti
-- **Scraper**: Fetches from Greenhouse (Anthropic, DeepMind, xAI), Ashby (OpenAI, Perplexity), and metacareers GraphQL (Meta AI — filtered to the Artificial Intelligence team)
+- **Scraper**: Fetches from Greenhouse (Anthropic, DeepMind, xAI), Ashby (OpenAI, Perplexity), and metacareers GraphQL (Meta — all teams, unfiltered)
 - **Classifier**: Parallel Ollama requests to classify job titles as SWE or not
 - **Database**: PostgreSQL with deduplication by (company, URL), first/last seen tracking
 

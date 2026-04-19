@@ -15,6 +15,14 @@ OLLAMA_TIMEOUT_SECONDS=300
 OLLAMA_KEEP_ALIVE=12h
 # Constrained devices (e.g. Raspberry Pi): keep concurrency/threads low
 OLLAMA_NUM_THREADS=2
+# Max concurrent requests the server processes (default 1 on CPU, 4 on GPU)
+OLLAMA_NUM_PARALLEL=2
+# Per-request context window the server advertises (Ollama default: 2048)
+OLLAMA_CONTEXT_LENGTH=4096
+# Flash attention: lower memory + modestly faster inference on supported backends
+OLLAMA_FLASH_ATTENTION=1
+# KV-cache quantisation (q8_0 halves KV memory vs default f16; needs flash_attention)
+OLLAMA_KV_CACHE_TYPE=q8_0
 CLASSIFY_CONCURRENCY=2
 # OLLAMA_CPUS unset: no CPU cap on Ollama container
 

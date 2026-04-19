@@ -27,7 +27,13 @@ ollama:
   host: http://ollama:11434
   model: qwen2.5:1.5b
   keep_alive: 12h
-  num_threads: 2
+  # Server-side tuning (see Ollama's env var docs). Setting any of these to
+  # null omits the env var and lets Ollama use its own default.
+  num_threads: 2             # Pi 4 has 4 cores; leave 2 for the OS + other containers
+  num_parallel: 2            # default 1 on CPU; 2 pairs with classify.concurrency below
+  context_length: 4096       # larger than Ollama's default (2048); fits few-shot + long titles
+  flash_attention: true      # lower KV memory + modest speedup
+  kv_cache_type: q8_0        # halves KV-cache footprint; requires flash_attention
   timeout_seconds: 300
   # null means no CPU cap on the Ollama container — we instead use cpu_shares
   # below (and CPUWeight at the systemd level) so Ollama yields to the rest

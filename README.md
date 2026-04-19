@@ -141,7 +141,20 @@ This builds:
 - `are-they-hiring-web` — FastAPI app (runs migrations on start)
 - `are-they-hiring-scraper` — Scheduler + scrapers + classifier
 
-The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the qwen2.5:1.5b model baked in.
+The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and bakes in both models the classifier uses: `qwen2.5:1.5b` (LLM confirm stage) and `all-minilm` (SVM pre-filter embeddings).
+
+## Classifier pre-filter
+
+A LinearSVC pre-filter runs before the LLM on the classification path (see issue #45, `src/classifier/prefilter.py`, `classifier/prefilter.json.gz`). Titles the SVM classifies as confidently-not-SWE short-circuit to `False` without an LLM call; the rest fall through to qwen2.5:1.5b. Cuts LLM call volume ~5× during reclassify.
+
+The model ships as a compressed JSON file (~4 KiB) alongside the training data (`classifier/training_data.csv.gz`). Retrain on demand:
+
+```bash
+make retrain-prefilter       # rebuilds classifier/prefilter.json.gz
+make eval-prefilter          # re-runs CV without writing a new model
+```
+
+Toggle off with `CLASSIFIER_PREFILTER_ENABLED=false` for LLM-only classification.
 
 ## Configuration
 

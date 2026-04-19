@@ -1,7 +1,10 @@
 FROM docker.io/ollama/ollama:latest
 
-# Pre-pull the model during build so it's baked into the image
+# Pre-pull both models during build so they're baked into the image:
+#   - qwen2.5:1.5b: LLM classifier for the pre-filter "maybe" bucket
+#   - all-minilm:   embedding model for the LinearSVC pre-filter (#45)
 RUN bash -c 'ollama serve &' && \
     sleep 5 && \
     ollama pull qwen2.5:1.5b && \
+    ollama pull all-minilm && \
     pkill ollama || true

@@ -33,11 +33,22 @@
 **Rationale:** JSON APIs are faster, lighter (no browser/Chromium needed), more reliable, and return structured data. The scraper container went from ~1.3GB (with Chromium) to ~580MB. Playwright is no longer a runtime dependency for scraping.
 
 ### 4. Job Title Classification
-**Decision (revised 2026-04-19):** Local LLM via Ollama using `qwen2.5:1.5b` model with a `/api/chat` call carrying a `SYSTEM` rule + ~30 few-shot user/assistant message pairs. Temperature 0, `num_predict=4` cap.
+**Decision (revised 2026-04-19, two-stage):** Two-stage pipeline — a LinearSVC pre-filter short-circuits confident-negative titles, and `qwen2.5:1.5b` via Ollama `/api/chat` with a `SYSTEM` rule + 30 few-shot user/assistant pairs confirms the rest. Temperature 0, `num_predict=4` cap on the LLM. Kill-switch via `CLASSIFIER_PREFILTER_ENABLED=false`.
+
+**Pre-filter details:**
+- Trained with scikit-learn LinearSVC (`class_weight="balanced"`) on the same 1381 hand-labelled titles used to evaluate qwen.
+- Embeddings from Ollama's `all-minilm` model (46 MB on disk, 384-dim).
+- Threshold tuned via 5-fold CV on out-of-fold decision scores to preserve ~95% positive-class recall.
+- Model shipped at `classifier/prefilter.json.gz` (~4 KiB): coefficients, intercept, threshold, metadata. No pickle, no Python/sklearn version lock. Runtime inference is pure Python dot product via `src/classifier/prefilter.py`.
+- Scikit-learn is a *training-only* dep (`[project.optional-dependencies].training`); the production scraper image does not bundle sklearn or numpy.
+- Retrain via `make retrain-prefilter`. No automatic cadence — run after new hand-labels land.
+- On 1381 labels, pre-filter stage 5-fold CV: recall 96.1%, LLM call rate 21.9% → ~5× speedup on reclassify before the LLM quality reasserts.
+
 **Earlier iterations:**
 - TinyLlama 1.1B — classified "Account Executive" as SWE. Replaced.
 - Gemma2:2b with `/api/generate` and a single string prompt — scored 7/8 on a tiny smoke set.
 - Gemma3:270m-it-qat — deployed in prod briefly; measured at 95% recall but only ~4% precision on a hand-labelled ground-truth set of 1381 titles — said "yes" to almost everything.
+- `qwen2.5:1.5b` single-stage (2026-04-19): 97.8% accuracy / 69.8% precision / 72.5% recall. Made the home page believable but ~30 min reclassify on the Pi was painful.
 **What changed:** Switched to `/api/chat` (which uses Ollama's chat template) and supplied the classification rule as a `SYSTEM` message with the examples as alternating user/assistant turns. On 1381 hand-labelled titles, qwen2.5:1.5b with this format scored 97.8% accuracy, 69.8% precision, 72.5% recall — the best Pi-viable result across gemma2:2b, gemma3:1b-it-qat, gemma4:e2b/e4b, llama3.2:1b/3b, qwen2.5:1.5b/3b.
 **Why the narrower rule:** the satirical premise ("is Big AI still hiring software engineers?") targets *generic* SWE roles. AI-specific engineering (Applied AI, Research Engineer, Inference, Alignment, AI-product-specific work) and security/infrastructure roles are excluded, because hiring those is orthogonal to Dario's claim.
 **Implementation details:**

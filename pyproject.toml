@@ -27,6 +27,14 @@ dev = [
     "httpx>=0.28",
     "ruff>=0.15",
 ]
+# Training the SVM pre-filter (scripts/train_prefilter.py). Not needed at
+# runtime — the production classifier loads classifier/prefilter.json.gz and
+# runs inference with pure-Python dot products.
+training = [
+    "scikit-learn>=1.6,<2",
+    "numpy>=2.0,<3",
+    "pandas>=2.2,<3",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

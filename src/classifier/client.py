@@ -1,8 +1,12 @@
 import asyncio
+import logging
 
 import httpx
 
+from src.classifier import prefilter
 from src.config import settings
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You classify a job title at an AI company as either a traditional "
@@ -117,24 +121,69 @@ async def classify_titles(
     concurrency: int | None = None,
     timeout: float | None = None,
 ) -> dict[str, bool]:
-    """Classify job titles as SWE or not, with parallel Ollama requests.
+    """Classify job titles as SWE or not.
+
+    Two-stage pipeline (see issue #45):
+
+    1. **Pre-filter** — embed each title via Ollama's ``/api/embed`` endpoint,
+       run a committed LinearSVC model. Titles the SVM confidently classifies
+       as not-SWE short-circuit to ``False`` without ever calling the LLM.
+    2. **LLM confirm** — remaining titles (the SVM-"maybe" bucket) are sent to
+       ``/api/chat`` with the SYSTEM + few-shot prompt; the LLM's yes/no is
+       the final answer.
+
+    Set ``settings.classifier_prefilter_enabled = False`` (env: ``CLASSIFIER_PREFILTER_ENABLED=false``)
+    to skip stage 1 entirely — every title goes straight to the LLM. This is
+    the safety kill-switch. When the pre-filter stage fails (embedding error,
+    missing model file), we also fall through uniformly to the LLM and log
+    a warning rather than failing the whole pass.
 
     Args:
         titles: List of job titles to classify.
         ollama_host: Ollama API base URL.
-        model: Model name to use.
+        model: LLM model name (qwen2.5:1.5b etc.).
         on_progress: Async callback(current, total) for progress reporting.
-        concurrency: Max parallel requests (default from settings.classify_concurrency).
-        timeout: HTTP timeout per request in seconds
-            (default from settings.ollama_timeout_seconds).
+            ``current`` counts every title, including those short-circuited by
+            the pre-filter — the caller's progress bar tracks the full input.
+        concurrency: Max parallel LLM requests (default from
+            ``settings.classify_concurrency``).
+        timeout: HTTP timeout per LLM request in seconds (default from
+            ``settings.ollama_timeout_seconds``).
     """
     host = ollama_host or settings.ollama_host
     model_name = model or settings.ollama_model
     max_concurrent = concurrency or settings.classify_concurrency
     request_timeout = timeout if timeout is not None else settings.ollama_timeout_seconds
-    results: dict[str, bool] = {}
     total = len(titles)
+    results: dict[str, bool] = {}
     completed = 0
+
+    # Stage 1 — pre-filter (batched embed + SVM).
+    if settings.classifier_prefilter_enabled and titles:
+        needs_llm = await prefilter.should_call_llm(titles, host)
+    else:
+        needs_llm = dict.fromkeys(titles, True)
+
+    # Titles the pre-filter rejects are answered False immediately.
+    titles_for_llm: list[str] = []
+    for title in titles:
+        if needs_llm.get(title, True):
+            titles_for_llm.append(title)
+        else:
+            results[title] = False
+            completed += 1
+            if on_progress:
+                await on_progress(completed, total)
+
+    if titles_for_llm:
+        logger.info(
+            "Classifier pre-filter passed %d/%d titles to LLM (%.1f%% short-circuited)",
+            len(titles_for_llm),
+            total,
+            100 * (total - len(titles_for_llm)) / total,
+        )
+
+    # Stage 2 — LLM confirms anything the pre-filter couldn't confidently reject.
     semaphore = asyncio.Semaphore(max_concurrent)
 
     async def _classify_with_sem(client: httpx.AsyncClient, title: str):
@@ -147,7 +196,7 @@ async def classify_titles(
             await on_progress(completed, total)
 
     async with httpx.AsyncClient(timeout=request_timeout) as client:
-        tasks = [_classify_with_sem(client, title) for title in titles]
+        tasks = [_classify_with_sem(client, title) for title in titles_for_llm]
         await asyncio.gather(*tasks)
 
     return results

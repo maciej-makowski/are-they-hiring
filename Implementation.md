@@ -183,6 +183,12 @@ All containers communicate over the pod's shared network.
 - Auto-refreshes every 5s while any run is in progress
 - Error details shown inline for failed runs
 
+### About (`/about`)
+- Static Jinja2 template (no DB access). Explains the site's satirical framing,
+  lists the six tracked companies, summarises the classification rule, flags
+  methodology caveats, and links to the repo.
+- Reachable via the info glyph in the top-right nav, next to the settings cog.
+
 ---
 
 ## Testing Strategy
@@ -322,7 +328,7 @@ are-they-hiring/
 │   │   └── scheduler.py               # fetch/classify/reclassify + APScheduler
 │   └── web/
 │       ├── app.py                     # FastAPI app factory + routes
-│       ├── templates/                 # Jinja2 (base, home, day_detail, scrape_status)
+│       ├── templates/                 # Jinja2 (base, home, day_detail, scrape_status, about)
 │       └── static/                    # CSS, JS, sound placeholders
 ├── tests/
 │   ├── conftest.py                    # SQLite in-memory db_session fixture

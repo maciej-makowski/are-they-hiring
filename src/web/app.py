@@ -140,4 +140,8 @@ def create_app(db_session_override=None) -> FastAPI:
         runs = await get_recent_scrape_runs(session)
         return templates.TemplateResponse(request, "scrape_status.html", {"runs": runs})
 
+    @app.get("/about")
+    async def about(request: Request):
+        return templates.TemplateResponse(request, "about.html", {})
+
     return app

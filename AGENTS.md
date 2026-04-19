@@ -21,8 +21,8 @@ Rules for AI agents (and humans following the same conventions) working in this 
 
 ## 3. Tests and linting
 
-- Run `make test` before pushing. 40+ integration tests, all SQLite in-memory. No external services required.
-- Run `make lint` to check formatting. `make lint-fix` auto-fixes.
+- Run `make test` before pushing. Runs `tests/unit/` (renderer / schema golden tests) and `tests/integration/` (scrapers, API, DB — all SQLite in-memory). No external services required.
+- Run `make lint` to check formatting (covers `src/`, `tests/`, `deploy/`). `make lint-fix` auto-fixes.
 - All new behaviour needs a test. Bug fixes need a regression test.
 - CI runs tests + lint on every PR. The lint job will commit auto-fixes back to the branch; after that, `git pull` your branch before pushing again.
 

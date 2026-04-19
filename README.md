@@ -206,26 +206,50 @@ podman info | grep graphDriverName  # should now report "overlay"
 
 Best for Raspberry Pi and older systems. Requires `podman-compose` installed (`pip install podman-compose`).
 
+#### Profile-based deploy (recommended)
+
+Per-environment configuration lives in `deploy/profiles/<name>.yml` and is rendered into the `.env`, `compose.yml`, and systemd unit via Jinja2 templates. Secrets stay in a separate file outside the repo (`secrets_env_path:` in the profile, pointing at e.g. `~/.config/are-they-hiring/secrets.env`).
+
 ```bash
 # Allow user-scope systemd units to keep running after SSH logout.
-# Without this, the stack will stop when you disconnect.
 sudo loginctl enable-linger $USER
 
-# Build images and install systemd service
-make install-compose
+# Build images first (one-off)
+make build-all
 
-# Edit .env with real credentials
-nano ~/.config/are-they-hiring/.env
+# Preview what will be deployed (renders + diffs, does not apply)
+make deploy-render PROFILE=pi
 
-# Start and enable on boot
-systemctl --user start are-they-hiring-compose.service
-systemctl --user enable are-they-hiring-compose.service
+# Apply locally (renders, writes to ~/.config/..., reloads + restarts)
+make deploy PROFILE=pi
+
+# Or deploy over SSH from your dev machine to the Pi
+make deploy PROFILE=pi HOST=cfiet@192.168.1.2
 
 # View logs
 journalctl --user -u are-they-hiring-compose.service -f
 
 # Uninstall (preserves data and .env)
 make uninstall-compose
+```
+
+The renderer:
+- Validates the profile against a pydantic schema (typos in YAML fail fast).
+- Merges in secrets from `secrets_env_path` at apply time (never templated into committed files).
+- Warns if the live `.env` has orphan keys that aren't in the profile.
+- Refuses to overwrite if the live `compose.yml` or systemd unit has been hand-edited since the repo's last commit.
+
+See `deploy/profiles/pi.yml` for the current Pi profile — that's where you tweak `OLLAMA_MODEL`, CPU prioritisation, scrape schedule, etc.
+
+#### Legacy flow (deprecated)
+
+`make install-compose` still works but is deprecated — it copies the static `podman-compose.prod.yml` and `.env.example` without any env-specific rendering.
+
+```bash
+make install-compose
+nano ~/.config/are-they-hiring/.env
+systemctl --user start are-they-hiring-compose.service
+systemctl --user enable are-they-hiring-compose.service
 ```
 
 ### Option B: Quadlet units (requires Podman 4.4+)

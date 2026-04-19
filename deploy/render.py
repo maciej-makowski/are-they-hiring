@@ -73,7 +73,14 @@ class OllamaConfig(_StrictModel):
     host: str = "http://ollama:11434"
     model: str = "qwen2.5:1.5b"
     keep_alive: str = "12h"
-    num_threads: int = 2
+    # Server-side tuning knobs. These are written to the rendered .env and
+    # reach the Ollama container via ``env_file:``. Set any of the nullable
+    # ones to ``None`` to omit the var and let Ollama apply its own default.
+    num_threads: int | None = 2
+    num_parallel: int | None = None
+    context_length: int | None = None
+    flash_attention: bool = False
+    kv_cache_type: str | None = None
     timeout_seconds: int = 300
     cpus: float | None = None
     cpu_shares: int | None = None

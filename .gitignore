@@ -10,3 +10,6 @@ build/
 .pytest_cache/
 .mypy_cache/
 .superpowers/
+
+# Embedding experiment caches (#36) — regeneratable from /tmp/roles-to-label.csv
+scripts/cache/

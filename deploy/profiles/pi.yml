@@ -45,8 +45,13 @@ ollama:
   num_threads: 4             # Pi 4 has 4 cores; use all of them per chat
   num_parallel: null         # default (1 on CPU)
   context_length: 4096       # larger than Ollama's default (2048); fits few-shot + long titles
-  flash_attention: false
-  kv_cache_type: null
+  # flash_attention + q8_0 KV cache were broken in combination with
+  # num_parallel=2 and concurrency=2 (thrashed under memory pressure).
+  # On the stable concurrency=1 / single-runner baseline below, they're a
+  # small but real win: peak load drops ~4.2 -> ~3.6 (q8_0 halves KV cache
+  # size and the Pi stops paging), per-chat latency is ~3% faster.
+  flash_attention: true
+  kv_cache_type: q8_0
   timeout_seconds: 300
   cpus: null
   cpu_shares: 128

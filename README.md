@@ -141,7 +141,7 @@ This builds:
 - `are-they-hiring-web` — FastAPI app (runs migrations on start)
 - `are-they-hiring-scraper` — Scheduler + scrapers + classifier
 
-The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the gemma3:270m-it-qat model baked in.
+The Ollama image (`Containerfile.ollama`) is built automatically by `podman-compose` and includes the qwen2.5:1.5b model baked in.
 
 ## Configuration
 
@@ -156,7 +156,7 @@ Key settings:
 | Variable              | Default                | Description                      |
 |-----------------------|------------------------|----------------------------------|
 | `DATABASE_URL`        | `postgresql+asyncpg://arethey:changeme@...` | PostgreSQL connection |
-| `OLLAMA_MODEL`        | `gemma3:270m-it-qat`   | LLM model for classification     |
+| `OLLAMA_MODEL`        | `qwen2.5:1.5b`   | LLM model for classification     |
 | `OLLAMA_HOST`         | `http://localhost:11434` | Ollama API endpoint            |
 | `CLASSIFY_CONCURRENCY`| `4`                    | Parallel Ollama requests         |
 | `SCRAPE_SCHEDULE`     | `06:00,12:00,18:00`   | Cron times for scraping (UTC)    |

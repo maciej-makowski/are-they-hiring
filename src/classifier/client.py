@@ -80,6 +80,21 @@ FEW_SHOT_EXAMPLES: list[tuple[str, str]] = [
     ("Camera ISP Software Engineer, Consumer Devices", "no"),
     ("Technical Program Manager, Reliability Engineering", "no"),
     ("Prompt Engineer, Claude Code", "no"),
+    # Patterns added after observing false positives in live data:
+    # - Director- / VP-level "Engineering" titles are management, not hands-on SWE
+    ("Director, Engineering, Create", "no"),
+    ("Engineering Manager, Product Monetization (Billing Platform)", "no"),
+    # - Specialist-tool or domain-bounded "Engineer" / "Developer" roles
+    #   (SaaS integration, industrial design, data labeling) are not general SWE
+    ("Workday Engineer", "no"),
+    ("CMF Developer", "no"),
+    ("Linguistic Engineer", "no"),
+    # - Operations / planning roles even when the area sounds technical
+    ("User Operations Generalist - Enterprise Billing & Product (Contract)", "no"),
+    ("Capacity Planner", "no"),
+    # - "Designer" variants, including brand-specific ones (xAI's "Exceptional X")
+    ("Exceptional Designer", "no"),
+    ("Concept Modeling Designer", "no"),
 ]
 
 

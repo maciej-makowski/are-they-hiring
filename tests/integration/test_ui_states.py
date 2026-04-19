@@ -626,6 +626,46 @@ class TestDayDetail:
         assert "Openai SWE 0" in response.text
 
 
+# --- about page tests -----------------------------------------------------
+
+
+class TestAboutPage:
+    async def test_about_page_returns_200(self, client):
+        """GET /about renders without hitting the database."""
+        response = await client.get("/about")
+        assert response.status_code == 200
+
+    async def test_about_page_mentions_satire(self, client):
+        """The about page calls out its satirical framing."""
+        response = await client.get("/about")
+        assert response.status_code == 200
+        # Accept either "satire" or "satirical" — we render the latter today.
+        body = response.text.lower()
+        assert "satire" in body or "satirical" in body
+
+    async def test_about_page_lists_all_tracked_companies(self, client):
+        """All six scraped companies appear on the about page (case-insensitive)."""
+        response = await client.get("/about")
+        assert response.status_code == 200
+        body = response.text.lower()
+        for name in ("anthropic", "openai", "deepmind", "xai", "perplexity", "meta"):
+            assert name in body, f"expected {name!r} on /about"
+
+    async def test_about_page_linked_from_nav(self, client):
+        """The home page nav includes a link to /about alongside the settings cog."""
+        response = await client.get("/")
+        assert response.status_code == 200
+        assert 'href="/about"' in response.text
+
+
+class TestHomeQuote:
+    async def test_home_quote_mentions_timeline(self, client):
+        """The Dario quote on the home page references the 'within a year' timeline."""
+        response = await client.get("/")
+        assert response.status_code == 200
+        assert "within a year" in response.text
+
+
 # --- helpers --------------------------------------------------------------
 
 

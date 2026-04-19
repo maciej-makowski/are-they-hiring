@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/" class="back-link">&larr; Back to Home</a>
+
+<section class="about">
+    <h1>What is this?</h1>
+
+    <p>
+        This site is a satirical tracker on AI-hype predictions. In March 2025,
+        Anthropic CEO Dario Amodei
+        <a href="https://www.businessinsider.com/anthropic-ceo-dario-amodei-ai-replace-all-software-engineers-2025-3" target="_blank" rel="noopener">claimed</a>
+        AI would be writing essentially all code within a year. The counter on
+        the home page tracks how much of that window has elapsed.
+    </p>
+
+    <h2>What it shows</h2>
+    <p>
+        Every few hours we scrape the public job boards of six AI labs and
+        count how many of today's listings are generic software engineering
+        roles. The home page reports today's number. The 30-day calendar
+        shows the trail.
+    </p>
+    <p>The companies currently tracked:</p>
+    <ul>
+        <li>Anthropic</li>
+        <li>OpenAI</li>
+        <li>Google DeepMind</li>
+        <li>xAI</li>
+        <li>Perplexity</li>
+        <li>Meta (FAIR)</li>
+    </ul>
+
+    <h2>How classification works</h2>
+    <p>
+        Each job title is fed through a local LLM
+        (<a href="https://ollama.com/library/qwen2.5" target="_blank" rel="noopener">qwen2.5:1.5b</a>
+        via <a href="https://ollama.com/" target="_blank" rel="noopener">Ollama</a>)
+        with a narrow rule: generic product, backend, frontend, mobile, and
+        SRE roles count. AI / research / ML engineering, infrastructure,
+        security, management, and sales do not. The idea is to isolate the
+        kind of role the prediction was about &mdash; the commodity software
+        engineer &mdash; rather than specialised AI work.
+    </p>
+    <p>
+        For the exact prompt and rule list see
+        <a href="https://github.com/maciej-makowski/are-they-hiring/blob/master/Implementation.md" target="_blank" rel="noopener">Implementation.md</a>.
+    </p>
+
+    <h2>Caveats</h2>
+    <ul>
+        <li>
+            Sample bias. Greenhouse / Ashby / metacareers JSON is what each
+            company publicly exposes, which is not the whole hiring picture.
+        </li>
+        <li>
+            The classifier is not perfect. Internal benchmarking puts
+            precision at roughly 70%, and it occasionally mislabels edge
+            cases.
+        </li>
+        <li>
+            Only six companies. A broader sample would be more convincing,
+            but also more work to maintain.
+        </li>
+        <li>
+            This is not a prediction market or a serious forecast. It is a
+            countdown with a scoreboard.
+        </li>
+    </ul>
+
+    <h2>Source code</h2>
+    <p>
+        The code lives at
+        <a href="https://github.com/maciej-makowski/are-they-hiring" target="_blank" rel="noopener">github.com/maciej-makowski/are-they-hiring</a>.
+        Contributions are welcome &mdash; see
+        <a href="https://github.com/maciej-makowski/are-they-hiring/blob/master/AGENTS.md" target="_blank" rel="noopener">AGENTS.md</a>
+        for the conventions the repo follows.
+    </p>
+</section>
+{% endblock %}

@@ -3,5 +3,9 @@ WORKDIR /app
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 COPY pyproject.toml uv.lock ./
 COPY src/ src/
+# Bundled classifier pre-filter (model + compressed training data). See #45.
+# Runtime needs only the .json.gz; the .csv.gz is carried along so
+# `make retrain-prefilter` on the box (if ever run there) works.
+COPY classifier/ classifier/
 RUN uv sync --no-dev --frozen
 CMD [".venv/bin/python", "-m", "src.scrapers.scheduler"]

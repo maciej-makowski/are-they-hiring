@@ -1,0 +1,41 @@
+version: "3.8"
+services:
+  db:
+    image: docker.io/postgres:16
+    env_file: .env
+    volumes:
+      - arethey-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arethey"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: localhost/are-they-hiring-ollama:latest
+    env_file: .env
+{%- if ollama.cpus is not none %}
+    cpus: ${OLLAMA_CPUS:-{{ ollama.cpus }}}
+{%- endif %}
+{%- if ollama.cpu_shares is not none %}
+    cpu_shares: {{ ollama.cpu_shares }}
+{%- endif %}
+
+  web:
+    image: localhost/are-they-hiring-web:latest
+    env_file: .env
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  scraper:
+    image: localhost/are-they-hiring-scraper:latest
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  arethey-db-data:

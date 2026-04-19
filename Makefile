@@ -1,7 +1,7 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify dev install uninstall install-compose uninstall-compose
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify dev install uninstall install-compose uninstall-compose deploy deploy-render
 
 test:
-	uv run pytest tests/integration/ -v
+	uv run pytest tests/unit/ tests/integration/ -v
 
 test-e2e:
 	uv run pytest tests/e2e/ -v
@@ -13,12 +13,12 @@ revision:
 	uv run alembic revision --autogenerate -m "$(msg)"
 
 lint:
-	uv run ruff check src/ tests/
-	uv run ruff format --check src/ tests/
+	uv run ruff check src/ tests/ deploy/
+	uv run ruff format --check src/ tests/ deploy/
 
 lint-fix:
-	uv run ruff check --fix src/ tests/
-	uv run ruff format src/ tests/
+	uv run ruff check --fix src/ tests/ deploy/
+	uv run ruff format src/ tests/ deploy/
 
 build-container-web:
 	podman build -f Containerfile.web -t are-they-hiring-web .
@@ -81,6 +81,11 @@ uninstall:
 	@echo "Units removed. Data volume and .env preserved."
 
 install-compose: build-all
+	@echo ""
+	@echo "*** DEPRECATED: 'make install-compose' is being replaced by     ***"
+	@echo "*** 'make deploy PROFILE=<name>'. See deploy/profiles/ for       ***"
+	@echo "*** per-environment config. This target still works for now.    ***"
+	@echo ""
 	@echo "Installing compose-based systemd service..."
 	mkdir -p $(HOME)/.config/are-they-hiring
 	cp podman-compose.prod.yml $(HOME)/.config/are-they-hiring/compose.yml
@@ -96,6 +101,29 @@ install-compose: build-all
 	systemctl --user daemon-reload
 	@echo "Done. Start with: systemctl --user start are-they-hiring-compose.service"
 	@echo "Enable on boot: systemctl --user enable are-they-hiring-compose.service"
+
+# --- Profile-based deployment (issue #37) -----------------------------
+# Usage:
+#   make deploy-render PROFILE=pi                  # render + diff, no apply
+#   make deploy PROFILE=pi                         # render + apply locally
+#   make deploy PROFILE=pi HOST=user@192.168.1.2   # render + apply over SSH
+#
+# Profiles live in deploy/profiles/<name>.yml.
+
+PROFILE ?=
+HOST ?=
+
+deploy-render:
+	@if [ -z "$(PROFILE)" ]; then echo "Usage: make deploy-render PROFILE=<name>"; exit 2; fi
+	uv run python -m deploy.render --profile $(PROFILE) render
+
+deploy:
+	@if [ -z "$(PROFILE)" ]; then echo "Usage: make deploy PROFILE=<name> [HOST=user@host]"; exit 2; fi
+	@if [ -n "$(HOST)" ]; then \
+		uv run python -m deploy.render --profile $(PROFILE) apply --host $(HOST); \
+	else \
+		uv run python -m deploy.render --profile $(PROFILE) apply; \
+	fi
 
 uninstall-compose:
 	systemctl --user stop are-they-hiring-compose.service 2>/dev/null || true

@@ -10,3 +10,7 @@ build/
 .pytest_cache/
 .mypy_cache/
 .superpowers/
+# Deploy renderer staging + secrets (never committed)
+deploy/staging/
+secrets.env
+*.secrets.env

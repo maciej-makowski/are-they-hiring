@@ -1,0 +1,51 @@
+# Raspberry Pi deployment profile.
+#
+# One source of truth for the Pi's env-specific values. Rendered into:
+#   - ~/.config/are-they-hiring/.env
+#   - ~/.config/are-they-hiring/compose.yml
+#   - ~/.config/systemd/user/are-they-hiring-compose.service
+# by `python -m deploy.render --profile pi apply` (or `make deploy PROFILE=pi`).
+
+host: cfiet@192.168.1.2
+
+tz: UTC
+
+# Secrets (DB password etc.) live outside the repo. The renderer merges this
+# file into the rendered .env at apply time without templating anything.
+# Minimum contents on the Pi:
+#   POSTGRES_PASSWORD=<real password>
+#   DATABASE_URL=postgresql+asyncpg://arethey:<real password>@localhost:5432/arethey
+secrets_env_path: ~/.config/are-they-hiring/secrets.env
+
+postgres:
+  user: arethey
+  password: CHANGE_ME_TO_A_STRONG_PASSWORD
+  db: arethey
+  database_url: postgresql+asyncpg://arethey:CHANGE_ME_TO_A_STRONG_PASSWORD@localhost:5432/arethey
+
+ollama:
+  host: http://ollama:11434
+  model: qwen2.5:1.5b
+  keep_alive: 12h
+  num_threads: 2
+  timeout_seconds: 300
+  # null means no CPU cap on the Ollama container — we instead use cpu_shares
+  # below (and CPUWeight at the systemd level) so Ollama yields to the rest
+  # of the stack and to the OS under contention.
+  cpus: null
+  cpu_shares: 128
+
+classify:
+  concurrency: 2
+
+scrape:
+  schedule: "06:00,12:00,18:00"
+  retry_max: 3
+
+systemd:
+  # The whole stack yields to the OS under contention.
+  cpu_weight: 10
+  io_weight: 10
+  nice: 15
+  timeout_start_sec: 300
+  timeout_stop_sec: 180

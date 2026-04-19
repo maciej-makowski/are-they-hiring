@@ -1,0 +1,20 @@
+[Unit]
+Description=Are They Hiring - All Services (podman-compose)
+After=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=%h/.config/are-they-hiring
+ExecStart=/usr/bin/podman-compose -f compose.yml up -d
+ExecStop=/usr/bin/podman-compose -f compose.yml down
+TimeoutStartSec=300
+TimeoutStopSec=180
+Restart=on-failure
+RestartSec=30
+CPUWeight=10
+IOWeight=10
+Nice=15
+
+[Install]
+WantedBy=default.target

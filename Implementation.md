@@ -86,6 +86,14 @@
 - **Unsure** (amber + "..."): Scrapers still running or insufficient data. Shows X/3 scrapers finished, auto-refreshes every 10s.
 **Rationale:** Prevents misleading "NO" when scrapers haven't run yet today.
 
+### 13a. Profile-based deployment renderer (added 2026-04-18)
+**Decision:** Deployment config (per-env values, compose structure, systemd unit) is consolidated behind a profile-based Jinja2 renderer (`deploy/render.py`). Each environment (Pi, future VPS) has a `deploy/profiles/<name>.yml` validated by a pydantic schema; three templates under `deploy/templates/` render it into `.env`, `compose.yml`, and the `are-they-hiring-compose.service` systemd unit. Apply is done via `make deploy PROFILE=<name>` (local) or `make deploy PROFILE=<name> HOST=user@host` (remote over `ssh`/`scp`).
+**Rationale:** Previously, adding a single tuning knob (e.g. `CPUWeight`, `cpu_shares`) touched 2–3 files, and `make install-compose` didn't touch existing `.env`s — stale defaults on the Pi caused a silent regression during PR #35's rollout (the Pi kept using `gemma3:270m-it-qat` because the repo `.env.example` update never reached the live `.env`). One profile = one source of truth.
+**Secrets handling:** Profile carries a `secrets_env_path` pointer; the renderer merges that file into the rendered `.env` at apply time only, so the committed artefacts never contain secrets. Future upgrade path: sops/age.
+**Golden tests:** `tests/unit/test_render.py` pins rendered output against `deploy/testdata/pi-expected/`, and also verifies that a default-ish profile reproduces today's `.env.example`/`compose.prod.yml`/`.service` byte-for-byte — guaranteeing existing deployments see zero drift when migrating to the renderer.
+**First use case:** "Deprioritize Ollama vs OS" CPU tuning landed as a profile-only diff (`cpu_weight: 10`, `io_weight: 10`, `nice: 15` at the systemd level; `cpu_shares: 128` and `cpus: null` on the Ollama container) with no code/compose/unit edits.
+**Legacy target kept:** `make install-compose` still works, with a deprecation notice, so partial migrations don't break.
+
 ### 13. Collapsible Job Listings (added 2026-04-05)
 **Decision:** Day detail page shows company sections collapsed by default. Click to expand and see the full job table.
 **Rationale:** The summary (company name + posting count) is more useful at a glance than hundreds of rows.
@@ -308,6 +316,16 @@ are-they-hiring/
 │       ├── are-they-hiring-db.container
 │       ├── are-they-hiring-ollama.container
 │       └── are-they-hiring-scraper.container
+├── deploy/                            # Profile-based deployment renderer
+│   ├── render.py                      # CLI: --profile <name> render|apply [--host ...]
+│   ├── profiles/
+│   │   └── pi.yml                     # Pi profile (source of truth for all per-env values)
+│   ├── templates/
+│   │   ├── env.j2
+│   │   ├── compose.prod.yml.j2
+│   │   └── are-they-hiring-compose.service.j2
+│   └── testdata/
+│       └── pi-expected/               # Golden output for rendered-file regression tests
 ├── src/
 │   ├── config.py                      # Pydantic settings from .env
 │   ├── db/
@@ -332,7 +350,8 @@ are-they-hiring/
 │       └── static/                    # CSS, JS, sound placeholders
 ├── tests/
 │   ├── conftest.py                    # SQLite in-memory db_session fixture
-│   ├── integration/                   # 40 tests (scrapers, classifier, API, DB, scheduler)
+│   ├── unit/                          # Pure-Python unit tests (renderer golden-output, schema)
+│   ├── integration/                   # 40+ tests (scrapers, classifier, API, DB, scheduler)
 │   ├── e2e/                           # Playwright browser tests
 │   └── fixtures/
 │       ├── html_snapshots/            # (legacy, from Playwright era)

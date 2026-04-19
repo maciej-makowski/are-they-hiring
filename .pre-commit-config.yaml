@@ -9,8 +9,8 @@ repos:
   - repo: local
     hooks:
       - id: tests
-        name: integration tests
-        entry: uv run pytest tests/integration/ -q
+        name: unit + integration tests
+        entry: uv run pytest tests/unit/ tests/integration/ -q
         language: system
         pass_filenames: false
         always_run: true

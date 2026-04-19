@@ -2,7 +2,7 @@
 
 **Project:** are-they-still-hiring-software-engineers.com
 **Initial design:** 2026-03-13
-**Last updated:** 2026-04-18
+**Last updated:** 2026-04-19
 **Status:** Implemented, running in dev environment
 
 ---
@@ -33,9 +33,13 @@
 **Rationale:** JSON APIs are faster, lighter (no browser/Chromium needed), more reliable, and return structured data. The scraper container went from ~1.3GB (with Chromium) to ~580MB. Playwright is no longer a runtime dependency for scraping.
 
 ### 4. Job Title Classification
-**Decision (revised 2026-04-05):** Local LLM via Ollama using `gemma2:2b` model
-**Original decision:** TinyLlama 1.1B
-**What changed:** TinyLlama had terrible classification quality — it classified "Account Executive" and "Contracts Manager" as software engineering roles. Gemma2:2b scores 7/8 on a test set of representative titles.
+**Decision (revised 2026-04-19):** Local LLM via Ollama using `qwen2.5:1.5b` model with a `/api/chat` call carrying a `SYSTEM` rule + ~30 few-shot user/assistant message pairs. Temperature 0, `num_predict=4` cap.
+**Earlier iterations:**
+- TinyLlama 1.1B — classified "Account Executive" as SWE. Replaced.
+- Gemma2:2b with `/api/generate` and a single string prompt — scored 7/8 on a tiny smoke set.
+- Gemma3:270m-it-qat — deployed in prod briefly; measured at 95% recall but only ~4% precision on a hand-labelled ground-truth set of 1381 titles — said "yes" to almost everything.
+**What changed:** Switched to `/api/chat` (which uses Ollama's chat template) and supplied the classification rule as a `SYSTEM` message with the examples as alternating user/assistant turns. On 1381 hand-labelled titles, qwen2.5:1.5b with this format scored 97.8% accuracy, 69.8% precision, 72.5% recall — the best Pi-viable result across gemma2:2b, gemma3:1b-it-qat, gemma4:e2b/e4b, llama3.2:1b/3b, qwen2.5:1.5b/3b.
+**Why the narrower rule:** the satirical premise ("is Big AI still hiring software engineers?") targets *generic* SWE roles. AI-specific engineering (Applied AI, Research Engineer, Inference, Alignment, AI-product-specific work) and security/infrastructure roles are excluded, because hiring those is orthogonal to Dario's claim.
 **Implementation details:**
 - Classification runs with configurable parallelism (default 4 concurrent requests via `CLASSIFY_CONCURRENCY`)
 - Custom `Containerfile.ollama` bakes the model into the image (no download at runtime)
@@ -95,7 +99,7 @@
 │                                                    │
 │  ┌──────────┐  ┌────────┐  ┌─────────────┐       │
 │  │   web    │  │   db   │  │   ollama    │       │
-│  │ FastAPI  │  │ Postgres│  │ gemma2:2b  │       │
+│  │ FastAPI  │  │ Postgres│  │ qwen2.5:1.5b│       │
 │  │ :8000    │  │ :5432  │  │ :11434 GPU │       │
 │  └──────────┘  └────────┘  └─────────────┘       │
 │                                                    │
@@ -210,7 +214,7 @@ All containers communicate over the pod's shared network.
 | web     | Containerfile.web      | python:3.12-slim     | FastAPI app, templates, static, Alembic    |
 | scraper | Containerfile.scraper  | python:3.12-slim     | Scrapers (httpx), scheduler, classifier    |
 | db      | (stock)                | postgres:16          | PostgreSQL                                 |
-| ollama  | Containerfile.ollama   | ollama/ollama:latest | Ollama + gemma2:2b baked in (no download)  |
+| ollama  | Containerfile.ollama   | ollama/ollama:latest | Ollama + qwen2.5:1.5b baked in (no download) |
 
 **Note:** Web container runs `scripts/web-entrypoint.sh` which applies Alembic migrations before starting uvicorn.
 
@@ -237,7 +241,7 @@ SCRAPE_SCHEDULE=06:00,12:00,18:00
 SCRAPE_RETRY_MAX=3
 
 # Ollama
-OLLAMA_MODEL=gemma2:2b
+OLLAMA_MODEL=qwen2.5:1.5b
 OLLAMA_HOST=http://localhost:11434
 CLASSIFY_CONCURRENCY=4
 
@@ -284,7 +288,7 @@ are-they-hiring/
 ├── Makefile
 ├── Containerfile.web                  # FastAPI app image
 ├── Containerfile.scraper              # Scrapers + scheduler image
-├── Containerfile.ollama               # Ollama + bundled gemma2:2b
+├── Containerfile.ollama               # Ollama + bundled qwen2.5:1.5b
 ├── podman-compose.dev.yml             # Local dev environment (4 services)
 ├── podman-compose.test.yml            # E2E test environment
 ├── scripts/

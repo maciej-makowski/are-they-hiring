@@ -4,15 +4,88 @@ import httpx
 
 from src.config import settings
 
-PROMPT_TEMPLATE = (
-    'Given this job title: "{title}"\n'
-    "Is this a software engineering role? This includes roles like software engineer, "
-    "backend/frontend/fullstack developer, SRE, platform engineer, infrastructure "
-    "engineer, DevOps engineer, and similar hands-on coding roles. "
-    "It does NOT include research scientist, data analyst, product manager, designer, "
-    "or management roles.\n"
-    "Answer only: yes or no"
+SYSTEM_PROMPT = (
+    "You classify a job title at an AI company as either a traditional "
+    'software engineer role or not.\n\nAnswer "yes" ONLY if the title '
+    "describes someone whose primary job is writing general-purpose "
+    "business, product, or consumer software — the sort of software "
+    "engineering role that exists at any company, not something "
+    'specific to AI.\n\nAnswer "no" for roles in:\n'
+    "- AI / ML / research engineering or science (Applied AI Engineer, "
+    "Research Engineer, Research Scientist, ML Engineer, AI Deployment "
+    "Engineer, Prompt Engineer)\n"
+    "- AI-stack infrastructure (Inference, Model, Training, "
+    "Pre-training, Post-training, Reinforcement Learning, Alignment, "
+    "Safeguards, Frontier Systems, Agent Infrastructure, Evals)\n"
+    "- AI-product-specific engineering (ChatGPT, Codex, Claude, "
+    "Gemini, Sora, X Money, Consumer Devices — even when titled "
+    "Software Engineer)\n"
+    "- Security (Security Engineer, Security Researcher, Application "
+    "Security, Detection & Response)\n"
+    "- Generic infrastructure, platform, or systems (Infrastructure "
+    "Engineer, Platform Engineer, Databases, Observability, DevOps, "
+    "Fleet, Compute, Storage, Systems, Sandboxing, Privacy)\n"
+    "- Data engineering or analytics (Data Engineer, Analytics "
+    "Engineer, Data Scientist)\n"
+    "- Customer-facing technical roles (Solutions Architect, Solutions "
+    "Engineer, Forward Deployed Engineer, Client Platform Engineer, "
+    "Field Engineer)\n"
+    "- Management (Engineering Manager, Technical Program Manager, "
+    "Program Manager, Lead — when the role coordinates rather than "
+    "builds)\n"
+    "- Non-technical roles (Account Executive, Account Director, "
+    "Client Partner, Sales, Marketing, Counsel, Legal, Recruiter, "
+    "Designer, Tutor, Investigator)\n\n"
+    'Say "yes" for plain "Software Engineer" or "Software Engineer, X" / '
+    "Backend / Frontend / Full-Stack / Mobile / iOS / Android / UI / Web "
+    "Engineer / Site Reliability Engineer — as long as the area is "
+    "non-AI (Billing, Payments, Identity, Growth, B2B, Monetization "
+    "Product, Localization, Productivity, Jobs Platform, Gov, Education, "
+    "Youth Well-Being, etc.).\n\n"
+    "Respond with exactly one word: yes or no."
 )
+
+FEW_SHOT_EXAMPLES: list[tuple[str, str]] = [
+    ("Software Engineer, Billing Platform", "yes"),
+    ("Senior Software Engineer, Identity Platform", "yes"),
+    ("Full Stack Software Engineer, Growth", "yes"),
+    ("Backend Engineer - Enterprise", "yes"),
+    ("Mobile iOS Engineer", "yes"),
+    ("Software Engineer, Payments", "yes"),
+    ("Android Engineer, Monetization", "yes"),
+    ("Exceptional Software Engineer", "yes"),
+    ("Software Engineer, Inference", "no"),
+    ("Senior Software Engineer, Infrastructure", "no"),
+    ("Software Engineer, Codex App", "no"),
+    ("Software Engineer, Safeguards", "no"),
+    ("Application Security Engineer", "no"),
+    ("Applied AI Engineer", "no"),
+    ("Research Engineer, Pre-training", "no"),
+    ("Forward Deployed Engineer, Applied AI", "no"),
+    ("Solutions Architect, Applied AI", "no"),
+    ("Engineering Manager, API Experience", "no"),
+    ("Account Executive, Startups", "no"),
+    ("AI Deployment Engineer", "no"),
+    ("Data Engineer, Analytics", "no"),
+    ("Product Designer, Growth", "no"),
+    ("Full-Stack Software Engineer, Reinforcement Learning", "no"),
+    ("Senior Software Engineer, Databases", "no"),
+    ("Software Engineer, Distributed Data Systems (Sora)", "no"),
+    ("Software Engineer, Frontier Systems", "no"),
+    ("Research Scientist, Gemini Personal Intelligence", "no"),
+    ("Camera ISP Software Engineer, Consumer Devices", "no"),
+    ("Technical Program Manager, Reliability Engineering", "no"),
+    ("Prompt Engineer, Claude Code", "no"),
+]
+
+
+def _build_messages(title: str) -> list[dict]:
+    messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
+    for example_title, answer in FEW_SHOT_EXAMPLES:
+        messages.append({"role": "user", "content": example_title})
+        messages.append({"role": "assistant", "content": answer})
+    messages.append({"role": "user", "content": title})
+    return messages
 
 
 async def _classify_one(
@@ -22,13 +95,17 @@ async def _classify_one(
     title: str,
 ) -> tuple[str, bool]:
     """Classify a single title. Returns (title, is_swe)."""
-    prompt = PROMPT_TEMPLATE.format(title=title)
     response = await client.post(
-        f"{host}/api/generate",
-        json={"model": model, "prompt": prompt, "stream": False},
+        f"{host}/api/chat",
+        json={
+            "model": model,
+            "messages": _build_messages(title),
+            "stream": False,
+            "options": {"temperature": 0, "num_predict": 4},
+        },
     )
     response.raise_for_status()
-    answer = response.json()["response"].strip().lower()
+    answer = response.json()["message"]["content"].strip().lower()
     return title, answer.startswith("yes")
 
 

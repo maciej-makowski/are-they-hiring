@@ -286,6 +286,60 @@ journalctl --user -u are-they-hiring-web.service -f
 make uninstall
 ```
 
+### Public access via Cloudflare Tunnel
+
+To expose the running stack on a public hostname (HTTPS, no inbound ports forwarded on the router) attach a Cloudflare Tunnel. The tunnel runs as its own system-scope `cloudflared.service`, separate from the user-scope podman service that hosts the app.
+
+**Prerequisite:** the chosen domain (e.g. `maciej.dev`) must be using Cloudflare nameservers. Tunnel won't work if the zone's NS records still point at another DNS host.
+
+**One-time setup on a fresh Pi:**
+
+```bash
+# 1. Install cloudflared (arm64 deb)
+curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64.deb \
+     -o /tmp/cloudflared.deb
+sudo dpkg -i /tmp/cloudflared.deb
+
+# 2. Browser auth — copy the URL it prints, click through, pick the zone
+cloudflared tunnel login
+
+# 3. Create the named tunnel (writes ~/.cloudflared/<TUNNEL_UUID>.json)
+cloudflared tunnel create are-they-hiring
+
+# 4. Add the public CNAME record
+cloudflared tunnel route dns are-they-hiring aretheyhiring.maciej.dev
+
+# 5. Stage credentials + config in /etc/cloudflared (system service reads from here)
+TUNNEL_UUID=$(ls ~/.cloudflared/*.json | head -1 | xargs -n1 basename | sed 's/.json$//')
+sudo mkdir -p /etc/cloudflared
+sudo cp ~/.cloudflared/${TUNNEL_UUID}.json /etc/cloudflared/
+sudo chmod 600 /etc/cloudflared/${TUNNEL_UUID}.json
+sudo tee /etc/cloudflared/config.yml > /dev/null <<EOF
+tunnel: are-they-hiring
+credentials-file: /etc/cloudflared/${TUNNEL_UUID}.json
+ingress:
+  - hostname: aretheyhiring.maciej.dev
+    service: http://localhost:8000
+  - service: http_status:404
+EOF
+
+# 6. Install + enable the systemd service
+sudo cloudflared service install
+sudo systemctl daemon-reload
+sudo systemctl enable --now cloudflared
+
+# 7. Verify
+sudo systemctl is-active cloudflared       # → active
+curl -I https://aretheyhiring.maciej.dev/   # → 200
+```
+
+**Two gotchas worth remembering:**
+
+- **`credentials-file:` must point at `/etc/cloudflared/...`**, not `~/.cloudflared/...`. The system service runs as root and reads from `/etc`. If you skip step 5 and only have the user-scope copy, the service starts but can't authenticate.
+- **Run `sudo cloudflared service install` after** the config + creds are in `/etc/cloudflared/`. The installer reads them at install time and bails out otherwise.
+
+**Recovery on a reinstalled Pi:** if the host was reflashed but the tunnel record still exists at Cloudflare (visible via `cloudflared tunnel list` once authed in step 2), you can skip step 3 — `cloudflared tunnel create` will fail "already exists" and the existing UUID + JSON cred can be re-staged into `/etc/cloudflared`. DNS routing (step 4) is also idempotent. We did exactly this when 192.168.1.2 got rebuilt.
+
 ### GPU support
 
 GPU acceleration is disabled by default. To enable on NVIDIA systems:

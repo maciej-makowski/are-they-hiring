@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify retrain-prefilter eval-prefilter dev install uninstall install-compose uninstall-compose deploy deploy-render
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify retrain-prefilter eval-prefilter dev install uninstall install-compose uninstall-compose deploy deploy-render migrate-to-quadlet
 
 test:
 	uv run pytest tests/unit/ tests/integration/ -v

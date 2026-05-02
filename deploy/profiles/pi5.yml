@@ -19,7 +19,10 @@ postgres:
   database_url: postgresql+asyncpg://arethey:CHANGE_ME_TO_A_STRONG_PASSWORD@localhost:5432/arethey
 
 ollama:
-  host: http://ollama:11434
+  # Inside a podman pod all containers share the network namespace, so the
+  # scraper reaches Ollama via localhost — NOT via the compose-style service
+  # name (`ollama` would not resolve in a pod).
+  host: http://localhost:11434
   model: qwen2.5:1.5b
   keep_alive: 12h
   num_threads: 4           # Pi 5 has 4 fast Cortex-A76 cores; use them all

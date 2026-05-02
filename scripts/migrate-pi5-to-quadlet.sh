@@ -20,6 +20,11 @@
 
 set -euo pipefail
 
+# Anchor cwd at the repo root so `make deploy` finds the right Makefile
+# regardless of where the user invoked the script from.
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
 HOST="${1:-}"
 if [[ -z "$HOST" ]]; then
   echo "Usage: $0 user@host" >&2

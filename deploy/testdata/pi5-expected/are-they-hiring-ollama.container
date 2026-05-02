@@ -1,0 +1,21 @@
+[Unit]
+Description=Are They Hiring - Ollama LLM (qwen2.5:1.5b bundled)
+Requires=are-they-hiring-pod.service
+After=are-they-hiring-pod.service
+
+[Container]
+Image=localhost/are-they-hiring-ollama:latest
+Pod=are-they-hiring.pod
+EnvironmentFile=%h/.config/are-they-hiring/.env
+# Uncomment for NVIDIA GPU acceleration:
+#AddDevice=nvidia.com/gpu=all
+#Environment=OLLAMA_VULKAN=1
+#Environment=OLLAMA_GPU_LAYERS=-1
+
+[Service]
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target

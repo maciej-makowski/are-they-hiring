@@ -256,6 +256,47 @@ def test_cmd_apply_quadlet_restarts_pod_service(tmp_path: Path, monkeypatch) -> 
     ]
 
 
+def test_cmd_apply_quadlet_aborts_on_hand_edited_target(tmp_path: Path, monkeypatch) -> None:
+    """Hand-edit guard fires for quadlet target files (not just compose ones).
+
+    The guard already iterates over ``target_paths(profile, home)`` so it's
+    mode-agnostic — this test pins that behaviour for the quadlet paths.
+    """
+
+    import time
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply
+
+    profile = Profile.model_validate(
+        {
+            "host": "x@y",
+            "secrets_env_path": None,
+            "deployment_mode": "quadlet",
+        }
+    )
+
+    # Pretend the repo's last commit was 1000s ago so a freshly written target
+    # file (mtime=now) looks hand-edited.
+    monkeypatch.setattr(render_mod, "_repo_last_commit_time", lambda: time.time() - 1000)
+
+    # Pre-create a hand-edited quadlet file (matching one of the target_paths).
+    quadlet_dir = tmp_path / ".config" / "containers" / "systemd"
+    quadlet_dir.mkdir(parents=True)
+    hand_edited = quadlet_dir / "are-they-hiring-ollama.container"
+    hand_edited.write_text("# hand edit\n")
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host=None, home=tmp_path)
+
+    assert rc == 2, "cmd_apply must refuse with non-zero exit code"
+    assert runs == [], "no systemctl calls should fire when guard aborts"
+    # Live file is untouched.
+    assert hand_edited.read_text() == "# hand edit\n"
+
+
 def test_cmd_apply_remote_compose_restarts_compose_service(tmp_path: Path, monkeypatch) -> None:
     """In compose mode, the remote post-write ssh restart targets the compose service."""
 

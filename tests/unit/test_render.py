@@ -40,6 +40,7 @@ PI5_TEMPLATE_TO_GOLDEN = [
     ("quadlet/are-they-hiring-db.container.j2", "are-they-hiring-db.container"),
     ("quadlet/are-they-hiring-ollama.container.j2", "are-they-hiring-ollama.container"),
     ("quadlet/are-they-hiring-web.container.j2", "are-they-hiring-web.container"),
+    ("quadlet/are-they-hiring-scraper.container.j2", "are-they-hiring-scraper.container"),
 ]
 
 

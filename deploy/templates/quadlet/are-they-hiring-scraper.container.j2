@@ -1,0 +1,16 @@
+[Unit]
+Description=Are They Hiring - Scraper (APScheduler + httpx)
+Requires=are-they-hiring-db.service are-they-hiring-ollama.service
+After=are-they-hiring-db.service are-they-hiring-ollama.service
+
+[Container]
+Image=localhost/are-they-hiring-scraper:latest
+Pod=are-they-hiring.pod
+EnvironmentFile=%h/.config/are-they-hiring/.env
+
+[Service]
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

@@ -15,6 +15,7 @@ from deploy.render import (
     OllamaConfig,
     Profile,
     SystemdConfig,
+    _jinja_env,
     hand_edit_check,
     load_profile,
     merge_secrets,
@@ -25,6 +26,7 @@ from deploy.render import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOLDEN_DIR = REPO_ROOT / "deploy" / "testdata" / "pi-expected"
+PI5_GOLDEN_DIR = REPO_ROOT / "deploy" / "testdata" / "pi5-expected"
 
 
 TEMPLATE_TO_GOLDEN = {
@@ -33,12 +35,34 @@ TEMPLATE_TO_GOLDEN = {
     "are-they-hiring-compose.service.j2": "are-they-hiring-compose.service",
 }
 
+PI5_TEMPLATE_TO_GOLDEN = [
+    ("quadlet/are-they-hiring.pod.j2", "are-they-hiring.pod"),
+]
+
 
 @pytest.mark.parametrize("template_name,golden_name", list(TEMPLATE_TO_GOLDEN.items()))
 def test_pi_profile_matches_golden(template_name: str, golden_name: str) -> None:
     profile = load_profile("pi")
     rendered = render_profile(profile)[template_name]
     expected = (GOLDEN_DIR / golden_name).read_text()
+    assert rendered == expected, (
+        f"rendered {template_name} differs from {golden_name}; "
+        "if the change is intentional, regenerate the golden file."
+    )
+
+
+@pytest.mark.parametrize("template_name,golden_name", PI5_TEMPLATE_TO_GOLDEN)
+def test_pi5_profile_matches_golden(template_name: str, golden_name: str) -> None:
+    """Golden tests for individual quadlet templates under the pi5 profile.
+
+    Each tuple in PI5_TEMPLATE_TO_GOLDEN is independent — rendering one
+    template at a time means tasks 2.2/3.x can add tuples before the other
+    quadlet templates exist.
+    """
+    profile = load_profile("pi5")
+    env = _jinja_env()
+    rendered = env.get_template(template_name).render(**profile.model_dump())
+    expected = (PI5_GOLDEN_DIR / golden_name).read_text()
     assert rendered == expected, (
         f"rendered {template_name} differs from {golden_name}; "
         "if the change is intentional, regenerate the golden file."

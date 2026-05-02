@@ -1,0 +1,11 @@
+# Stub profile — replaced by real values in Task 5.1
+host: cfiet@192.168.1.3
+tz: UTC
+secrets_env_path: ~/.config/are-they-hiring/secrets.env
+deployment_mode: quadlet
+
+postgres:
+  user: arethey
+  password: CHANGE_ME_TO_A_STRONG_PASSWORD
+  db: arethey
+  database_url: postgresql+asyncpg://arethey:CHANGE_ME_TO_A_STRONG_PASSWORD@localhost:5432/arethey

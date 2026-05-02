@@ -32,6 +32,7 @@ import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -109,6 +110,7 @@ class Profile(_StrictModel):
     host: str | None = None
     tz: str = "UTC"
     secrets_env_path: str | None = None
+    deployment_mode: Literal["compose", "quadlet"] = "compose"
     postgres: PostgresConfig = Field(default_factory=PostgresConfig)
     ollama: OllamaConfig = Field(default_factory=OllamaConfig)
     classify: ClassifyConfig = Field(default_factory=ClassifyConfig)

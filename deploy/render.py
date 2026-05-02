@@ -407,16 +407,25 @@ def cmd_apply(
         staged_paths = _write_staging(result, staging)
 
         if host is None:
-            _apply_local(staged_paths, live_paths, skip_restart=skip_restart)
+            _apply_local(staged_paths, live_paths, profile, skip_restart=skip_restart)
         else:
             _apply_remote(staged_paths, live_paths, host, home=home, skip_restart=skip_restart)
 
     return 0
 
 
+def _restart_service_name(profile: Profile) -> str:
+    """systemd unit to restart after writing config, dispatched by deployment_mode."""
+
+    if profile.deployment_mode == "quadlet":
+        return "are-they-hiring-pod.service"
+    return "are-they-hiring-compose.service"
+
+
 def _apply_local(
     staged_paths: dict[str, Path],
     live_paths: dict[str, Path],
+    profile: Profile,
     *,
     skip_restart: bool = False,
 ) -> None:
@@ -428,7 +437,7 @@ def _apply_local(
     if skip_restart:
         return
     _run(["systemctl", "--user", "daemon-reload"])
-    _run(["systemctl", "--user", "restart", "are-they-hiring-compose.service"])
+    _run(["systemctl", "--user", "restart", _restart_service_name(profile)])
 
 
 def _apply_remote(

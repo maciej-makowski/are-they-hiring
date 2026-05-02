@@ -209,6 +209,53 @@ def test_cmd_apply_writes_all_three_targets(tmp_path: Path) -> None:
     assert (tmp_path / ".config/systemd/user/are-they-hiring-compose.service").exists()
 
 
+def test_cmd_apply_compose_restarts_compose_service(tmp_path: Path, monkeypatch) -> None:
+    """In compose mode, the post-write systemctl restart targets the compose service."""
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply, load_profile
+
+    profile = load_profile("pi")
+    profile.secrets_env_path = None
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    cmd_apply(profile, host=None, home=tmp_path, skip_restart=False)
+
+    assert runs == [
+        ["systemctl", "--user", "daemon-reload"],
+        ["systemctl", "--user", "restart", "are-they-hiring-compose.service"],
+    ]
+
+
+def test_cmd_apply_quadlet_restarts_pod_service(tmp_path: Path, monkeypatch) -> None:
+    """In quadlet mode, the post-write systemctl restart targets the pod service."""
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply
+
+    profile = Profile.model_validate(
+        {
+            "host": "x@y",
+            "secrets_env_path": None,
+            "deployment_mode": "quadlet",
+        }
+    )
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host=None, home=tmp_path, skip_restart=False)
+    assert rc == 0
+
+    # daemon-reload then restart of are-they-hiring-pod.service (NOT compose.service)
+    assert runs == [
+        ["systemctl", "--user", "daemon-reload"],
+        ["systemctl", "--user", "restart", "are-they-hiring-pod.service"],
+    ]
+
+
 def test_target_paths_compose() -> None:
     p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s"})
     paths = target_paths(p, home=Path("/home/cfiet"))

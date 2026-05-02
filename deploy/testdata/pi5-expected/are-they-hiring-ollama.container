@@ -16,6 +16,7 @@ EnvironmentFile=%h/.config/are-they-hiring/.env
 Restart=on-failure
 RestartSec=30
 TimeoutStartSec=300
+TimeoutStopSec=180
 
 [Install]
 WantedBy=default.target

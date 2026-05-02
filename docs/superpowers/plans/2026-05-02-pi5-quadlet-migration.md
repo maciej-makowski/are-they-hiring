@@ -438,7 +438,8 @@ PodmanArgs=--cpu-shares={{ ollama.cpu_shares }}
 [Service]
 Restart=on-failure
 RestartSec=30
-TimeoutStartSec=300
+TimeoutStartSec={{ systemd.timeout_start_sec }}
+TimeoutStopSec={{ systemd.timeout_stop_sec }}
 {%- if systemd.cpu_weight != 100 %}
 CPUWeight={{ systemd.cpu_weight }}
 {%- endif %}
@@ -476,6 +477,7 @@ EnvironmentFile=%h/.config/are-they-hiring/.env
 Restart=on-failure
 RestartSec=30
 TimeoutStartSec=300
+TimeoutStopSec=180
 
 [Install]
 WantedBy=default.target

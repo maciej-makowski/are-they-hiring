@@ -137,3 +137,7 @@ uninstall-compose:
 	rm -f $(HOME)/.config/systemd/user/are-they-hiring-compose.service
 	systemctl --user daemon-reload
 	@echo "Service removed. Data volume, compose file, and .env preserved."
+
+migrate-to-quadlet:
+	@if [ -z "$(HOST)" ]; then echo "Usage: make migrate-to-quadlet HOST=user@host"; exit 2; fi
+	./scripts/migrate-pi5-to-quadlet.sh $(HOST)

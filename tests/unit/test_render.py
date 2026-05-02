@@ -256,6 +256,71 @@ def test_cmd_apply_quadlet_restarts_pod_service(tmp_path: Path, monkeypatch) -> 
     ]
 
 
+def test_cmd_apply_remote_compose_restarts_compose_service(tmp_path: Path, monkeypatch) -> None:
+    """In compose mode, the remote post-write ssh restart targets the compose service."""
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply, load_profile
+
+    profile = load_profile("pi")
+    profile.secrets_env_path = None
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host="user@host", home=tmp_path, skip_restart=False)
+    assert rc == 0
+
+    # Find the final ssh restart command (one of the captured runs).
+    restart_cmds = [cmd for cmd in runs if cmd[:2] == ["ssh", "user@host"] and "daemon-reload" in cmd[-1]]
+    assert len(restart_cmds) == 1, f"expected one ssh restart command, got: {runs}"
+    restart_cmd = restart_cmds[0]
+    assert "daemon-reload" in restart_cmd[-1]
+    assert "restart are-they-hiring-compose.service" in restart_cmd[-1]
+
+
+def test_cmd_apply_remote_quadlet_restarts_pod_service(tmp_path: Path, monkeypatch) -> None:
+    """In quadlet mode, the remote post-write ssh restart targets the pod service.
+
+    Also asserts scp paths target the quadlet locations under
+    ``~/.config/containers/systemd/`` and the env path under
+    ``~/.config/are-they-hiring/.env``.
+    """
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply
+
+    profile = Profile.model_validate(
+        {
+            "host": "x@y",
+            "secrets_env_path": None,
+            "deployment_mode": "quadlet",
+        }
+    )
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host="user@host", home=tmp_path, skip_restart=False)
+    assert rc == 0
+
+    # Collect all scp destinations.
+    scp_dests = [cmd[-1] for cmd in runs if cmd and cmd[0] == "scp"]
+    assert "user@host:~/.config/are-they-hiring/.env" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring.pod" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-db.container" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-ollama.container" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-web.container" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-scraper.container" in scp_dests
+
+    # Find the final ssh restart command.
+    restart_cmds = [cmd for cmd in runs if cmd[:2] == ["ssh", "user@host"] and "daemon-reload" in cmd[-1]]
+    assert len(restart_cmds) == 1, f"expected one ssh restart command, got: {runs}"
+    restart_cmd = restart_cmds[0]
+    assert "daemon-reload" in restart_cmd[-1]
+    assert "restart are-they-hiring-pod.service" in restart_cmd[-1]
+
+
 def test_target_paths_compose() -> None:
     p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s"})
     paths = target_paths(p, home=Path("/home/cfiet"))

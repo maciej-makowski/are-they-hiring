@@ -409,7 +409,7 @@ def cmd_apply(
         if host is None:
             _apply_local(staged_paths, live_paths, profile, skip_restart=skip_restart)
         else:
-            _apply_remote(staged_paths, live_paths, host, home=home, skip_restart=skip_restart)
+            _apply_remote(staged_paths, live_paths, profile, host, home=home, skip_restart=skip_restart)
 
     return 0
 
@@ -445,6 +445,7 @@ def _apply_local(
 def _apply_remote(
     staged_paths: dict[str, Path],
     live_paths: dict[str, Path],
+    profile: Profile,
     host: str,
     *,
     home: Path,
@@ -461,11 +462,12 @@ def _apply_remote(
 
     if skip_restart:
         return
+    service = _restart_service_name(profile)
     _run(
         [
             "ssh",
             host,
-            "systemctl --user daemon-reload && systemctl --user restart are-they-hiring-compose.service",
+            f"systemctl --user daemon-reload && systemctl --user restart {service}",
         ]
     )
 

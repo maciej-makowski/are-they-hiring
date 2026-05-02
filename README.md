@@ -329,6 +329,14 @@ ssh cfiet@192.168.1.3 'sed -i "s|@db:5432|@localhost:5432|" ~/.config/are-they-h
 
 The same applies to any custom `OLLAMA_HOST` you may have placed in `secrets.env` — use `http://localhost:11434`, not `http://ollama:11434`.
 
+**Pasta IPv6-loopback quirk.** Rootless podman 5+ uses `pasta` for port forwarding by default, and pasta only forwards IPv4 loopback. Inside the host:
+
+- `curl http://127.0.0.1:8000/` → 200 ✅
+- `curl http://192.168.1.3:8000/` → 200 ✅
+- `curl http://localhost:8000/` → connection reset (resolves to `[::1]` first) ❌
+
+This bites anything on the host that talks to the pod via `localhost` — including the Cloudflare Tunnel below. Use `127.0.0.1` for any `cloudflared` ingress / health probe / LAN test that targets the pod.
+
 **Inspect after deploy:**
 
 ```bash
@@ -396,7 +404,35 @@ curl -I https://aretheyhiring.maciej.dev/   # → 200
 - **`credentials-file:` must point at `/etc/cloudflared/...`**, not `~/.cloudflared/...`. The system service runs as root and reads from `/etc`. If you skip step 5 and only have the user-scope copy, the service starts but can't authenticate.
 - **Run `sudo cloudflared service install` after** the config + creds are in `/etc/cloudflared/`. The installer reads them at install time and bails out otherwise.
 
+**If the origin is a rootless podman pod** (Option C above): set the ingress `service:` to `http://127.0.0.1:8000`, **not** `http://localhost:8000`. cloudflared runs as a system-scope service, hits the host loopback, and `localhost` resolves to `[::1]` first — pasta only forwards IPv4 so the tunnel returns 502s on every request. Same one-line cause as the secrets.env hostname gotcha in Option C.
+
 **Recovery on a reinstalled Pi:** if the host was reflashed but the tunnel record still exists at Cloudflare (visible via `cloudflared tunnel list` once authed in step 2), you can skip step 3 — `cloudflared tunnel create` will fail "already exists" and the existing UUID + JSON cred can be re-staged into `/etc/cloudflared`. DNS routing (step 4) is also idempotent. We did exactly this when 192.168.1.2 got rebuilt.
+
+**Migrating the tunnel between hosts** (e.g. Pi 4 → Pi 5 cutover): the tunnel UUID and DNS record stay the same; only the cloudflared connector moves. On the source host, stop and disable the service so it doesn't auto-restart on reboot:
+
+```bash
+ssh cfiet@<old-host> 'sudo systemctl disable --now cloudflared'
+```
+
+Relay the system-scope config + credentials to the destination host, preserving paths and root ownership:
+
+```bash
+ssh cfiet@<new-host> 'sudo mkdir -p /etc/cloudflared && sudo chmod 755 /etc/cloudflared'
+ssh cfiet@<old-host> 'sudo cat /etc/cloudflared/config.yml' \
+  | ssh cfiet@<new-host> 'sudo tee /etc/cloudflared/config.yml > /dev/null'
+ssh cfiet@<old-host> 'sudo cat /etc/cloudflared/<UUID>.json' \
+  | ssh cfiet@<new-host> 'sudo tee /etc/cloudflared/<UUID>.json > /dev/null \
+      && sudo chmod 600 /etc/cloudflared/<UUID>.json'
+```
+
+(Optional) relay the user-scope `~/.cloudflared/cert.pem` and config so future `cloudflared tunnel ...` API calls work without re-running `cloudflared tunnel login`. The cred file under `~/.cloudflared/` is mode `400`, so write via `/tmp` and `mv`:
+
+```bash
+ssh cfiet@<old-host> 'cat ~/.cloudflared/cert.pem' | ssh cfiet@<new-host> 'cat > ~/.cloudflared/cert.pem && chmod 600 ~/.cloudflared/cert.pem'
+ssh cfiet@<old-host> 'cat ~/.cloudflared/<UUID>.json' | ssh cfiet@<new-host> 'cat > /tmp/_cred.json && chmod 600 /tmp/_cred.json && mv /tmp/_cred.json ~/.cloudflared/<UUID>.json && chmod 400 ~/.cloudflared/<UUID>.json'
+```
+
+Install + enable the service on the new host (steps 6–7 from the fresh-Pi setup above). After ~10 s the new connector registers with Cloudflare's edge. The migration leaves the old connector listed in `cloudflared tunnel info <name>` for ~15 min until Cloudflare garbage-collects it — harmless, real traffic routes to the live connector. **Don't** run `cloudflared tunnel cleanup` from the new host to drop the stale connector — it kicks the new connector off the edge instead. Just wait it out.
 
 ### GPU support
 

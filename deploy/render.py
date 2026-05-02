@@ -45,15 +45,6 @@ DEPLOY_DIR = REPO_ROOT / "deploy"
 TEMPLATES_DIR = DEPLOY_DIR / "templates"
 PROFILES_DIR = DEPLOY_DIR / "profiles"
 
-# Render outputs in this order. Each entry: (template_name, live_path_fn).
-# live_path_fn takes the HOME path and returns the live target path.
-RENDER_TARGETS: list[tuple[str, str]] = [
-    ("env.j2", ".config/are-they-hiring/.env"),
-    ("compose.prod.yml.j2", ".config/are-they-hiring/compose.yml"),
-    ("are-they-hiring-compose.service.j2", ".config/systemd/user/are-they-hiring-compose.service"),
-]
-
-
 # Profile schema --------------------------------------------------------
 
 

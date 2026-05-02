@@ -141,6 +141,34 @@ def _jinja_env(templates_dir: Path = TEMPLATES_DIR) -> Environment:
     )
 
 
+def target_paths(profile: Profile, home: Path) -> dict[str, Path]:
+    """Return a mapping of template name (relative to deploy/templates/) →
+    absolute target path on the host's filesystem, dispatching by deployment_mode.
+    """
+    common = {
+        "env.j2": home / ".config" / "are-they-hiring" / ".env",
+    }
+    if profile.deployment_mode == "compose":
+        return {
+            **common,
+            "compose.prod.yml.j2": home / ".config" / "are-they-hiring" / "compose.yml",
+            "are-they-hiring-compose.service.j2": (
+                home / ".config" / "systemd" / "user" / "are-they-hiring-compose.service"
+            ),
+        }
+    if profile.deployment_mode == "quadlet":
+        quadlet_dir = home / ".config" / "containers" / "systemd"
+        return {
+            **common,
+            "quadlet/are-they-hiring.pod.j2": quadlet_dir / "are-they-hiring.pod",
+            "quadlet/are-they-hiring-db.container.j2": (quadlet_dir / "are-they-hiring-db.container"),
+            "quadlet/are-they-hiring-ollama.container.j2": (quadlet_dir / "are-they-hiring-ollama.container"),
+            "quadlet/are-they-hiring-web.container.j2": (quadlet_dir / "are-they-hiring-web.container"),
+            "quadlet/are-they-hiring-scraper.container.j2": (quadlet_dir / "are-they-hiring-scraper.container"),
+        }
+    raise RuntimeError(f"unhandled deployment_mode: {profile.deployment_mode}")
+
+
 def render_profile(
     profile: Profile,
     templates_dir: Path = TEMPLATES_DIR,
@@ -149,7 +177,9 @@ def render_profile(
 
     env = _jinja_env(templates_dir)
     context = profile.model_dump()
-    return {tmpl: env.get_template(tmpl).render(**context) for tmpl, _ in RENDER_TARGETS}
+    # Use a dummy home to enumerate template names; only the keys matter here.
+    tmpl_names = target_paths(profile, Path("/")).keys()
+    return {tmpl: env.get_template(tmpl).render(**context) for tmpl in tmpl_names}
 
 
 # .env parsing / secret merging ----------------------------------------
@@ -286,24 +316,17 @@ def _home() -> Path:
     return Path(os.path.expanduser("~"))
 
 
-def _target_path(template_name: str, home: Path) -> Path:
-    relative = dict(RENDER_TARGETS)[template_name]
-    return home / relative
-
-
 def _write_staging(result: RenderResult, staging_dir: Path) -> dict[str, Path]:
-    """Write rendered files into ``staging_dir``. Returns {template: path}."""
+    """Write rendered files into ``staging_dir``. Returns {template: staging_path}."""
 
     staging_dir.mkdir(parents=True, exist_ok=True)
     paths: dict[str, Path] = {}
-    filenames = {
-        "env.j2": "env",
-        "compose.prod.yml.j2": "compose.prod.yml",
-        "are-they-hiring-compose.service.j2": "are-they-hiring-compose.service",
-    }
-    for template_name, _ in RENDER_TARGETS:
-        path = staging_dir / filenames[template_name]
-        path.write_text(result.rendered[template_name])
+    for template_name, rendered_text in result.rendered.items():
+        # Flatten template sub-paths (e.g. "quadlet/foo.container.j2") to a
+        # safe flat filename in the staging dir.
+        flat_name = Path(template_name).name.removesuffix(".j2")
+        path = staging_dir / flat_name
+        path.write_text(rendered_text)
         paths[template_name] = path
     return paths
 
@@ -313,11 +336,11 @@ def cmd_render(profile: Profile, *, home: Path | None = None) -> int:
 
     home = home or _home()
     result = RenderResult(profile=profile, rendered=render_profile(profile))
+    live_paths = target_paths(profile, home)
 
     print(f"Rendering profile -> staging diff vs {home}", file=sys.stderr)
     any_diff = False
-    for template_name, _ in RENDER_TARGETS:
-        live = _target_path(template_name, home)
+    for template_name, live in live_paths.items():
         rendered = result.rendered[template_name]
         live_text = live.read_text() if live.exists() else ""
         diff = unified_diff(live_text, rendered, f"{live} (live)", f"{template_name} (rendered)")
@@ -325,7 +348,7 @@ def cmd_render(profile: Profile, *, home: Path | None = None) -> int:
             any_diff = True
             print(diff)
 
-    orphans = orphan_keys(_target_path("env.j2", home), result.env_text())
+    orphans = orphan_keys(live_paths["env.j2"], result.env_text())
     if orphans:
         print(
             f"WARNING: live .env has keys not in the profile: {', '.join(orphans)}",
@@ -355,13 +378,13 @@ def cmd_apply(
 
     home = home or _home()
     result = RenderResult(profile=profile, rendered=render_profile(profile))
+    live_paths = target_paths(profile, home)
 
     # Hand-edit guard (local only; for remote the hand-edit check would need
     # to run on the remote box — out of scope for v1).
     if host is None:
         repo_ts = _repo_last_commit_time()
-        for template_name, _ in RENDER_TARGETS:
-            live = _target_path(template_name, home)
+        for template_name, live in live_paths.items():
             if hand_edit_check(live, repo_ts):
                 live_text = live.read_text()
                 rendered = result.rendered[template_name]
@@ -378,9 +401,8 @@ def cmd_apply(
     env_text = merge_secrets(result.env_text(), secrets_path)
 
     # Orphan warning based on live .env.
-    orphans_path = _target_path("env.j2", home) if host is None else None
-    if orphans_path is not None:
-        orphans = orphan_keys(orphans_path, env_text)
+    if host is None:
+        orphans = orphan_keys(live_paths["env.j2"], env_text)
         if orphans:
             print(
                 f"WARNING: live .env has keys not in the profile: {', '.join(orphans)}",
@@ -394,16 +416,20 @@ def cmd_apply(
         staged_paths = _write_staging(result, staging)
 
         if host is None:
-            _apply_local(staged_paths, home, skip_restart=skip_restart)
+            _apply_local(staged_paths, live_paths, skip_restart=skip_restart)
         else:
-            _apply_remote(staged_paths, host, skip_restart=skip_restart)
+            _apply_remote(staged_paths, live_paths, host, home=home, skip_restart=skip_restart)
 
     return 0
 
 
-def _apply_local(staged_paths: dict[str, Path], home: Path, *, skip_restart: bool = False) -> None:
-    for template_name, rel in RENDER_TARGETS:
-        target = home / rel
+def _apply_local(
+    staged_paths: dict[str, Path],
+    live_paths: dict[str, Path],
+    *,
+    skip_restart: bool = False,
+) -> None:
+    for template_name, target in live_paths.items():
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(staged_paths[template_name], target)
         print(f"wrote {target}", file=sys.stderr)
@@ -414,11 +440,19 @@ def _apply_local(staged_paths: dict[str, Path], home: Path, *, skip_restart: boo
     _run(["systemctl", "--user", "restart", "are-they-hiring-compose.service"])
 
 
-def _apply_remote(staged_paths: dict[str, Path], host: str, *, skip_restart: bool = False) -> None:
+def _apply_remote(
+    staged_paths: dict[str, Path],
+    live_paths: dict[str, Path],
+    host: str,
+    *,
+    home: Path,
+    skip_restart: bool = False,
+) -> None:
     # Use ~ in the remote path; ssh expands it in the remote shell.
-    for template_name, rel in RENDER_TARGETS:
+    for template_name, target in live_paths.items():
+        rel = target.relative_to(home).as_posix()
         remote_path = f"~/{rel}"
-        remote_dir = os.path.dirname(rel)
+        remote_dir = str(Path(rel).parent)
         _run(["ssh", host, f"mkdir -p ~/{remote_dir}"])
         _run(["scp", str(staged_paths[template_name]), f"{host}:{remote_path}"])
         print(f"wrote {host}:{remote_path}", file=sys.stderr)

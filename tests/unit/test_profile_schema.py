@@ -95,13 +95,13 @@ def test_host_optional() -> None:
     assert Profile(host="user@host").host == "user@host"
 
 
-def test_profile_deployment_mode_defaults_to_compose():
+def test_profile_deployment_mode_defaults_to_compose() -> None:
     """Default deployment_mode must be 'compose' for backward compatibility
     with pi.yml and any existing third-party profile."""
     p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s"})
     assert p.deployment_mode == "compose"
 
 
-def test_profile_deployment_mode_rejects_unknown_value():
+def test_profile_deployment_mode_rejects_unknown_value() -> None:
     with pytest.raises(ValidationError):
         Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s", "deployment_mode": "k8s"})

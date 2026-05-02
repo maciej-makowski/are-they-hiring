@@ -20,6 +20,7 @@ from deploy.render import (
     merge_secrets,
     orphan_keys,
     render_profile,
+    target_paths,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -178,6 +179,37 @@ def test_cmd_apply_writes_all_three_targets(tmp_path: Path) -> None:
     assert (tmp_path / ".config/are-they-hiring/.env").exists()
     assert (tmp_path / ".config/are-they-hiring/compose.yml").exists()
     assert (tmp_path / ".config/systemd/user/are-they-hiring-compose.service").exists()
+
+
+def test_target_paths_compose() -> None:
+    p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s"})
+    paths = target_paths(p, home=Path("/home/cfiet"))
+    assert paths == {
+        "env.j2": Path("/home/cfiet/.config/are-they-hiring/.env"),
+        "compose.prod.yml.j2": Path("/home/cfiet/.config/are-they-hiring/compose.yml"),
+        "are-they-hiring-compose.service.j2": Path("/home/cfiet/.config/systemd/user/are-they-hiring-compose.service"),
+    }
+
+
+def test_target_paths_quadlet() -> None:
+    p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s", "deployment_mode": "quadlet"})
+    paths = target_paths(p, home=Path("/home/cfiet"))
+    assert paths == {
+        "env.j2": Path("/home/cfiet/.config/are-they-hiring/.env"),
+        "quadlet/are-they-hiring.pod.j2": Path("/home/cfiet/.config/containers/systemd/are-they-hiring.pod"),
+        "quadlet/are-they-hiring-db.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-db.container"
+        ),
+        "quadlet/are-they-hiring-ollama.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-ollama.container"
+        ),
+        "quadlet/are-they-hiring-web.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-web.container"
+        ),
+        "quadlet/are-they-hiring-scraper.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-scraper.container"
+        ),
+    }
 
 
 def test_cmd_apply_merges_secrets(tmp_path: Path) -> None:

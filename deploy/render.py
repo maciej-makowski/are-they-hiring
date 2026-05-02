@@ -419,7 +419,9 @@ def _restart_service_name(profile: Profile) -> str:
 
     if profile.deployment_mode == "quadlet":
         return "are-they-hiring-pod.service"
-    return "are-they-hiring-compose.service"
+    if profile.deployment_mode == "compose":
+        return "are-they-hiring-compose.service"
+    raise RuntimeError(f"unhandled deployment_mode: {profile.deployment_mode}")
 
 
 def _apply_local(

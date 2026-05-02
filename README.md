@@ -188,7 +188,11 @@ make revision msg="describe the change"
 
 ## Production Deployment (Raspberry Pi / Linux)
 
-Two deployment methods are available:
+Three deployment methods are available — pick one based on the host's Podman version:
+
+- **Option A** (Podman 4.3+): podman-compose under a single systemd service. Pi 4 runs this.
+- **Option B** (Podman 4.4+): static quadlet units committed in `podman/systemd/`, installed via `make install`. Manual `.env` editing.
+- **Option C** (Podman 5+, recommended): native quadlets rendered from a profile (`deploy/profiles/pi5.yml`). Pi 5 runs this.
 
 ### Raspberry Pi prerequisites
 
@@ -285,6 +289,52 @@ journalctl --user -u are-they-hiring-web.service -f
 # Uninstall (preserves data and .env)
 make uninstall
 ```
+
+### Option C: Quadlet via profile renderer (Podman 5+, recommended)
+
+Same idea as Option A but emits **native quadlet files** (`.pod` + `.container`) under `~/.config/containers/systemd/` instead of a `compose.yml` + wrapper service. No `podman-compose` indirection at runtime; the pod starts via its own systemd unit and cascades to the four containers. Requires Podman 5+ for the quadlet feature-set used (pod `PublishPort=`, container `Pod=` reference).
+
+```bash
+# Allow user-scope systemd units to keep running after SSH logout (one-time).
+sudo loginctl enable-linger $USER
+
+# Build images on the target host (one-off; the pod references localhost/are-they-hiring-{web,scraper,ollama}:latest).
+make build-all
+
+# Preview the rendered quadlets (diffs against live ~/.config/containers/systemd/...).
+make deploy-render PROFILE=pi5
+
+# Apply locally (writes quadlets, daemon-reload, restart pod).
+make deploy PROFILE=pi5
+
+# Or apply over SSH from a dev box.
+make deploy PROFILE=pi5 HOST=cfiet@192.168.1.3
+```
+
+**One-time migration from Option A** (the Pi 5's path — it ran compose first):
+
+```bash
+make migrate-to-quadlet HOST=cfiet@192.168.1.3
+```
+
+The script stops + disables `are-they-hiring-compose.service`, **copies the DB volume from `are-they-hiring_arethey-db-data` (compose project-prefixed) to `are-they-hiring-db-data` (quadlet name)**, removes the stale compose unit + `compose.yml`, then runs `make deploy PROFILE=pi5 HOST=...`. Idempotent — re-running on a migrated box is a no-op.
+
+The volume rename is the load-bearing step. podman-compose names volumes `<project>_<volume>`, but the quadlet `db.container` declares `Volume=are-they-hiring-db-data:/var/lib/postgresql/data` — a different name. Without the copy step the new pod would start against an empty volume and Postgres would auto-init from scratch (data loss).
+
+**Inspect after deploy:**
+
+```bash
+# Containers managed by the pod
+podman ps --format 'table {{.Names}} {{.Status}}'
+
+# Generated systemd units (regenerated on every daemon-reload from the .container/.pod files)
+systemctl --user list-units 'are-they-hiring-*'
+
+# Pod-level logs
+journalctl --user -u are-they-hiring-pod.service -f
+```
+
+See `deploy/profiles/pi5.yml` for the Pi 5 tuning (4-thread Cortex-A76 cores, `flash_attention=true`, `kv_cache_type=q8_0`, no CPU cap).
 
 ### Public access via Cloudflare Tunnel
 

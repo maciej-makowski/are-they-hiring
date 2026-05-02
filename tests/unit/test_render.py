@@ -37,6 +37,7 @@ TEMPLATE_TO_GOLDEN = {
 
 PI5_TEMPLATE_TO_GOLDEN = [
     ("quadlet/are-they-hiring.pod.j2", "are-they-hiring.pod"),
+    ("quadlet/are-they-hiring-db.container.j2", "are-they-hiring-db.container"),
 ]
 
 

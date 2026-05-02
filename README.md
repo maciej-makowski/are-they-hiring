@@ -321,6 +321,14 @@ The script stops + disables `are-they-hiring-compose.service`, **copies the DB v
 
 The volume rename is the load-bearing step. podman-compose names volumes `<project>_<volume>`, but the quadlet `db.container` declares `Volume=are-they-hiring-db-data:/var/lib/postgresql/data` — a different name. Without the copy step the new pod would start against an empty volume and Postgres would auto-init from scratch (data loss).
 
+**Update `secrets.env` for pod networking before the cutover.** Compose mode resolves siblings by service name (`db`, `ollama`); pod mode puts every container in one network namespace, so siblings are reachable only via `localhost`. The rendered `.env` already uses `localhost`, but `secrets_env_path` overlays carry your live `DATABASE_URL` — and a `secrets.env` left over from compose mode will contain `@db:5432` and override the renderer's `localhost`. Edit before deploying:
+
+```bash
+ssh cfiet@192.168.1.3 'sed -i "s|@db:5432|@localhost:5432|" ~/.config/are-they-hiring/secrets.env'
+```
+
+The same applies to any custom `OLLAMA_HOST` you may have placed in `secrets.env` — use `http://localhost:11434`, not `http://ollama:11434`.
+
 **Inspect after deploy:**
 
 ```bash

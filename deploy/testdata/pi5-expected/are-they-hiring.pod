@@ -1,0 +1,9 @@
+[Unit]
+Description=Are They Hiring - Pod
+
+[Pod]
+PodName=are-they-hiring
+PublishPort=8000:8000
+
+[Install]
+WantedBy=default.target

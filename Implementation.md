@@ -105,6 +105,12 @@
 **First use case:** "Deprioritize Ollama vs OS" CPU tuning landed as a profile-only diff (`cpu_weight: 10`, `io_weight: 10`, `nice: 15` at the systemd level; `cpu_shares: 128` and `cpus: null` on the Ollama container) with no code/compose/unit edits.
 **Legacy target kept:** `make install-compose` still works, with a deprecation notice, so partial migrations don't break.
 
+### 13b. Pi 5 native quadlets via profile renderer (added 2026-05-02)
+**Decision:** The Raspberry Pi 5 (16 GB, Podman 5) deploys via native systemd quadlets rendered from `deploy/profiles/pi5.yml`, not via the podman-compose wrapper used on the Pi 4. The renderer (#42, decision 13a) gained a `deployment_mode: "compose" | "quadlet"` field and a quadlet template family (`deploy/templates/quadlet/are-they-hiring{,-db,-ollama,-web,-scraper}.{pod,container}.j2`). On apply, files are written to `~/.config/containers/systemd/` and the stack is started via `are-they-hiring-pod.service`, which cascades to the four container services.
+**Rationale:** Pi 5 runs Podman 5, which supports the full quadlet feature set (pod `PublishPort=`, container `Pod=` reference) without compose-shaped indirection. Removing podman-compose from the runtime path eliminates a layer of YAML translation, makes per-container restart/`systemctl status` first-class, and keeps the source of truth (the profile) consistent with the Pi 4 deployment story. Pi 4 stays on `pi.yml`/compose mode — its Podman 4.3 lacks the quadlet features pi5 uses.
+**Migration step that's load-bearing:** podman-compose names the DB volume `are-they-hiring_arethey-db-data` (project-prefixed), but the quadlet `db.container` declares `Volume=are-they-hiring-db-data:/var/lib/postgresql/data`. `scripts/migrate-pi5-to-quadlet.sh` copies the data between the two named volumes before the cutover; without that step the new pod would auto-init Postgres from scratch (data loss).
+**Test pattern:** Per-template parametrised goldens under `deploy/testdata/pi5-expected/` lock the rendered quadlets and `.env`. Each template lands as an independent tuple in `PI5_TEMPLATE_TO_GOLDEN`, so chunked work doesn't break the suite mid-implementation. Compose-mode goldens stay untouched, guaranteeing the Pi 4 deployment stays byte-identical.
+
 ### 13. Collapsible Job Listings (added 2026-04-05)
 **Decision:** Day detail page shows company sections collapsed by default. Click to expand and see the full job table.
 **Rationale:** The summary (company name + posting count) is more useful at a glance than hundreds of rows.

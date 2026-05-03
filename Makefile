@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify retrain-prefilter eval-prefilter dev install uninstall install-compose uninstall-compose deploy deploy-render install-cloudflared
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify retrain-prefilter eval-prefilter dev install uninstall install-compose uninstall-compose deploy deploy-render migrate-to-quadlet install-cloudflared
 
 test:
 	uv run pytest tests/unit/ tests/integration/ -v
@@ -137,6 +137,10 @@ uninstall-compose:
 	rm -f $(HOME)/.config/systemd/user/are-they-hiring-compose.service
 	systemctl --user daemon-reload
 	@echo "Service removed. Data volume, compose file, and .env preserved."
+
+migrate-to-quadlet:
+	@if [ -z "$(HOST)" ]; then echo "Usage: make migrate-to-quadlet HOST=user@host"; exit 2; fi
+	./scripts/migrate-pi5-to-quadlet.sh $(HOST)
 
 install-cloudflared:
 	@if [ -z "$(HOST)" ]; then echo "Usage: make install-cloudflared HOST=user@host"; exit 2; fi

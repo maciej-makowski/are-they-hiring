@@ -15,15 +15,18 @@ from deploy.render import (
     OllamaConfig,
     Profile,
     SystemdConfig,
+    _jinja_env,
     hand_edit_check,
     load_profile,
     merge_secrets,
     orphan_keys,
     render_profile,
+    target_paths,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GOLDEN_DIR = REPO_ROOT / "deploy" / "testdata" / "pi-expected"
+PI5_GOLDEN_DIR = REPO_ROOT / "deploy" / "testdata" / "pi5-expected"
 
 
 TEMPLATE_TO_GOLDEN = {
@@ -32,12 +35,39 @@ TEMPLATE_TO_GOLDEN = {
     "are-they-hiring-compose.service.j2": "are-they-hiring-compose.service",
 }
 
+PI5_TEMPLATE_TO_GOLDEN = [
+    ("env.j2", "env"),
+    ("quadlet/are-they-hiring.pod.j2", "are-they-hiring.pod"),
+    ("quadlet/are-they-hiring-db.container.j2", "are-they-hiring-db.container"),
+    ("quadlet/are-they-hiring-ollama.container.j2", "are-they-hiring-ollama.container"),
+    ("quadlet/are-they-hiring-web.container.j2", "are-they-hiring-web.container"),
+    ("quadlet/are-they-hiring-scraper.container.j2", "are-they-hiring-scraper.container"),
+]
+
 
 @pytest.mark.parametrize("template_name,golden_name", list(TEMPLATE_TO_GOLDEN.items()))
 def test_pi_profile_matches_golden(template_name: str, golden_name: str) -> None:
     profile = load_profile("pi")
     rendered = render_profile(profile)[template_name]
     expected = (GOLDEN_DIR / golden_name).read_text()
+    assert rendered == expected, (
+        f"rendered {template_name} differs from {golden_name}; "
+        "if the change is intentional, regenerate the golden file."
+    )
+
+
+@pytest.mark.parametrize("template_name,golden_name", PI5_TEMPLATE_TO_GOLDEN)
+def test_pi5_profile_matches_golden(template_name: str, golden_name: str) -> None:
+    """Golden tests for individual quadlet templates under the pi5 profile.
+
+    Each tuple in PI5_TEMPLATE_TO_GOLDEN is independent — rendering one
+    template at a time means tasks 2.2/3.x can add tuples before the other
+    quadlet templates exist.
+    """
+    profile = load_profile("pi5")
+    env = _jinja_env()
+    rendered = env.get_template(template_name).render(**profile.model_dump())
+    expected = (PI5_GOLDEN_DIR / golden_name).read_text()
     assert rendered == expected, (
         f"rendered {template_name} differs from {golden_name}; "
         "if the change is intentional, regenerate the golden file."
@@ -178,6 +208,190 @@ def test_cmd_apply_writes_all_three_targets(tmp_path: Path) -> None:
     assert (tmp_path / ".config/are-they-hiring/.env").exists()
     assert (tmp_path / ".config/are-they-hiring/compose.yml").exists()
     assert (tmp_path / ".config/systemd/user/are-they-hiring-compose.service").exists()
+
+
+def test_cmd_apply_compose_restarts_compose_service(tmp_path: Path, monkeypatch) -> None:
+    """In compose mode, the post-write systemctl restart targets the compose service."""
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply, load_profile
+
+    profile = load_profile("pi")
+    profile.secrets_env_path = None
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    cmd_apply(profile, host=None, home=tmp_path, skip_restart=False)
+
+    assert runs == [
+        ["systemctl", "--user", "daemon-reload"],
+        ["systemctl", "--user", "restart", "are-they-hiring-compose.service"],
+    ]
+
+
+def test_cmd_apply_quadlet_restarts_pod_service(tmp_path: Path, monkeypatch) -> None:
+    """In quadlet mode, the post-write systemctl restart targets the pod service."""
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply
+
+    profile = Profile.model_validate(
+        {
+            "host": "x@y",
+            "secrets_env_path": None,
+            "deployment_mode": "quadlet",
+        }
+    )
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host=None, home=tmp_path, skip_restart=False)
+    assert rc == 0
+
+    # daemon-reload then restart of are-they-hiring-pod.service (NOT compose.service)
+    assert runs == [
+        ["systemctl", "--user", "daemon-reload"],
+        ["systemctl", "--user", "restart", "are-they-hiring-pod.service"],
+    ]
+
+
+def test_cmd_apply_quadlet_aborts_on_hand_edited_target(tmp_path: Path, monkeypatch) -> None:
+    """Hand-edit guard fires for quadlet target files (not just compose ones).
+
+    The guard already iterates over ``target_paths(profile, home)`` so it's
+    mode-agnostic — this test pins that behaviour for the quadlet paths.
+    """
+
+    import time
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply
+
+    profile = Profile.model_validate(
+        {
+            "host": "x@y",
+            "secrets_env_path": None,
+            "deployment_mode": "quadlet",
+        }
+    )
+
+    # Pretend the repo's last commit was 1000s ago so a freshly written target
+    # file (mtime=now) looks hand-edited.
+    monkeypatch.setattr(render_mod, "_repo_last_commit_time", lambda: time.time() - 1000)
+
+    # Pre-create a hand-edited quadlet file (matching one of the target_paths).
+    quadlet_dir = tmp_path / ".config" / "containers" / "systemd"
+    quadlet_dir.mkdir(parents=True)
+    hand_edited = quadlet_dir / "are-they-hiring-ollama.container"
+    hand_edited.write_text("# hand edit\n")
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host=None, home=tmp_path)
+
+    assert rc == 2, "cmd_apply must refuse with non-zero exit code"
+    assert runs == [], "no systemctl calls should fire when guard aborts"
+    # Live file is untouched.
+    assert hand_edited.read_text() == "# hand edit\n"
+
+
+def test_cmd_apply_remote_compose_restarts_compose_service(tmp_path: Path, monkeypatch) -> None:
+    """In compose mode, the remote post-write ssh restart targets the compose service."""
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply, load_profile
+
+    profile = load_profile("pi")
+    profile.secrets_env_path = None
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host="user@host", home=tmp_path, skip_restart=False)
+    assert rc == 0
+
+    # Find the final ssh restart command (one of the captured runs).
+    restart_cmds = [cmd for cmd in runs if cmd[:2] == ["ssh", "user@host"] and "daemon-reload" in cmd[-1]]
+    assert len(restart_cmds) == 1, f"expected one ssh restart command, got: {runs}"
+    restart_cmd = restart_cmds[0]
+    assert "daemon-reload" in restart_cmd[-1]
+    assert "restart are-they-hiring-compose.service" in restart_cmd[-1]
+
+
+def test_cmd_apply_remote_quadlet_restarts_pod_service(tmp_path: Path, monkeypatch) -> None:
+    """In quadlet mode, the remote post-write ssh restart targets the pod service.
+
+    Also asserts scp paths target the quadlet locations under
+    ``~/.config/containers/systemd/`` and the env path under
+    ``~/.config/are-they-hiring/.env``.
+    """
+
+    import deploy.render as render_mod
+    from deploy.render import cmd_apply
+
+    profile = Profile.model_validate(
+        {
+            "host": "x@y",
+            "secrets_env_path": None,
+            "deployment_mode": "quadlet",
+        }
+    )
+
+    runs: list[list[str]] = []
+    monkeypatch.setattr(render_mod, "_run", lambda cmd: runs.append(cmd))
+
+    rc = cmd_apply(profile, host="user@host", home=tmp_path, skip_restart=False)
+    assert rc == 0
+
+    # Collect all scp destinations.
+    scp_dests = [cmd[-1] for cmd in runs if cmd and cmd[0] == "scp"]
+    assert "user@host:~/.config/are-they-hiring/.env" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring.pod" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-db.container" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-ollama.container" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-web.container" in scp_dests
+    assert "user@host:~/.config/containers/systemd/are-they-hiring-scraper.container" in scp_dests
+
+    # Find the final ssh restart command.
+    restart_cmds = [cmd for cmd in runs if cmd[:2] == ["ssh", "user@host"] and "daemon-reload" in cmd[-1]]
+    assert len(restart_cmds) == 1, f"expected one ssh restart command, got: {runs}"
+    restart_cmd = restart_cmds[0]
+    assert "daemon-reload" in restart_cmd[-1]
+    assert "restart are-they-hiring-pod.service" in restart_cmd[-1]
+
+
+def test_target_paths_compose() -> None:
+    p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s"})
+    paths = target_paths(p, home=Path("/home/cfiet"))
+    assert paths == {
+        "env.j2": Path("/home/cfiet/.config/are-they-hiring/.env"),
+        "compose.prod.yml.j2": Path("/home/cfiet/.config/are-they-hiring/compose.yml"),
+        "are-they-hiring-compose.service.j2": Path("/home/cfiet/.config/systemd/user/are-they-hiring-compose.service"),
+    }
+
+
+def test_target_paths_quadlet() -> None:
+    p = Profile.model_validate({"host": "x@y", "secrets_env_path": "/tmp/s", "deployment_mode": "quadlet"})
+    paths = target_paths(p, home=Path("/home/cfiet"))
+    assert paths == {
+        "env.j2": Path("/home/cfiet/.config/are-they-hiring/.env"),
+        "quadlet/are-they-hiring.pod.j2": Path("/home/cfiet/.config/containers/systemd/are-they-hiring.pod"),
+        "quadlet/are-they-hiring-db.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-db.container"
+        ),
+        "quadlet/are-they-hiring-ollama.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-ollama.container"
+        ),
+        "quadlet/are-they-hiring-web.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-web.container"
+        ),
+        "quadlet/are-they-hiring-scraper.container.j2": Path(
+            "/home/cfiet/.config/containers/systemd/are-they-hiring-scraper.container"
+        ),
+    }
 
 
 def test_cmd_apply_merges_secrets(tmp_path: Path) -> None:

@@ -1,0 +1,37 @@
+[Unit]
+Description=Are They Hiring - Ollama LLM ({{ ollama.model }} bundled)
+Requires=are-they-hiring-pod.service
+After=are-they-hiring-pod.service
+
+[Container]
+Image=localhost/are-they-hiring-ollama:latest
+Pod=are-they-hiring.pod
+EnvironmentFile=%h/.config/are-they-hiring/.env
+{%- if ollama.cpus is not none %}
+PodmanArgs=--cpus={{ ollama.cpus }}
+{%- endif %}
+{%- if ollama.cpu_shares is not none %}
+PodmanArgs=--cpu-shares={{ ollama.cpu_shares }}
+{%- endif %}
+# Uncomment for NVIDIA GPU acceleration:
+#AddDevice=nvidia.com/gpu=all
+#Environment=OLLAMA_VULKAN=1
+#Environment=OLLAMA_GPU_LAYERS=-1
+
+[Service]
+Restart=on-failure
+RestartSec=30
+TimeoutStartSec={{ systemd.timeout_start_sec }}
+TimeoutStopSec={{ systemd.timeout_stop_sec }}
+{%- if systemd.cpu_weight != 100 %}
+CPUWeight={{ systemd.cpu_weight }}
+{%- endif %}
+{%- if systemd.io_weight != 100 %}
+IOWeight={{ systemd.io_weight }}
+{%- endif %}
+{%- if systemd.nice != 0 %}
+Nice={{ systemd.nice }}
+{%- endif %}
+
+[Install]
+WantedBy=default.target

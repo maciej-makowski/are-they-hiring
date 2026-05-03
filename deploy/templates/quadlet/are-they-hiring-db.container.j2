@@ -1,0 +1,21 @@
+[Unit]
+Description=Are They Hiring - PostgreSQL
+Requires=are-they-hiring-pod.service
+After=are-they-hiring-pod.service
+
+[Container]
+Image=docker.io/postgres:16
+Pod=are-they-hiring.pod
+EnvironmentFile=%h/.config/are-they-hiring/.env
+Volume=are-they-hiring-db-data:/var/lib/postgresql/data
+HealthCmd=pg_isready -U {{ postgres.user }}
+HealthInterval=5s
+HealthTimeout=5s
+HealthRetries=10
+
+[Service]
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=default.target

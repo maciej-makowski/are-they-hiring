@@ -1,4 +1,4 @@
-.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify retrain-prefilter eval-prefilter dev install uninstall install-compose uninstall-compose deploy deploy-render
+.PHONY: test test-e2e migrate revision lint lint-fix build build-all build-container-web build-container-scraper build-container-ollama run clean test-env-up test-env-down fetch classify reclassify retrain-prefilter eval-prefilter dev install uninstall install-compose uninstall-compose deploy deploy-render install-cloudflared
 
 test:
 	uv run pytest tests/unit/ tests/integration/ -v
@@ -137,3 +137,11 @@ uninstall-compose:
 	rm -f $(HOME)/.config/systemd/user/are-they-hiring-compose.service
 	systemctl --user daemon-reload
 	@echo "Service removed. Data volume, compose file, and .env preserved."
+
+install-cloudflared:
+	@if [ -z "$(HOST)" ]; then echo "Usage: make install-cloudflared HOST=user@host"; exit 2; fi
+	@echo "### staging sysctl drop-in for QUIC UDP buffers ###"
+	scp deploy/cloudflared/99-cloudflared-quic.conf $(HOST):/tmp/_cf-quic.conf
+	ssh $(HOST) 'sudo install -m 644 -o root -g root /tmp/_cf-quic.conf /etc/sysctl.d/99-cloudflared-quic.conf && rm /tmp/_cf-quic.conf && sudo sysctl --system >/dev/null && printf "rmem_max=%s\nwmem_max=%s\n" "$$(cat /proc/sys/net/core/rmem_max)" "$$(cat /proc/sys/net/core/wmem_max)"'
+	@echo "### ensuring cloudflared.service is installed + active ###"
+	ssh $(HOST) '[ -f /etc/cloudflared/config.yml ] || { echo "ERROR: /etc/cloudflared/config.yml missing on $(HOST). Follow the Cloudflare Tunnel setup recipe in README before running this target."; exit 2; }; [ -f /etc/systemd/system/cloudflared.service ] || sudo cloudflared service install; sudo systemctl daemon-reload && sudo systemctl enable cloudflared && sudo systemctl restart cloudflared && sudo systemctl is-active cloudflared'

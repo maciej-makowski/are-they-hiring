@@ -389,20 +389,24 @@ ingress:
   - service: http_status:404
 EOF
 
-# 6. Install + enable the systemd service
-sudo cloudflared service install
-sudo systemctl daemon-reload
-sudo systemctl enable --now cloudflared
+# 6. Install + enable the systemd service, plus the QUIC UDP-buffer sysctl tune.
+#    Runs from your dev machine; idempotent — safe to re-run after a binary upgrade.
+make install-cloudflared HOST=cfiet@<pi-ip>
 
 # 7. Verify
 sudo systemctl is-active cloudflared       # → active
 curl -I https://aretheyhiring.maciej.dev/   # → 200
 ```
 
+`make install-cloudflared` does two host-config bits that aren't worth doing by hand on every cutover:
+
+1. Drops [`deploy/cloudflared/99-cloudflared-quic.conf`](deploy/cloudflared/99-cloudflared-quic.conf) into `/etc/sysctl.d/` and runs `sudo sysctl --system`. Lifts `net.core.{rmem,wmem}_max` to 7 MiB so cloudflared's QUIC connections don't hit the kernel's UDP-buffer ceiling. Without this, cloudflared logs a soft warning on startup and QUIC throughput is throttled under load. Reference: [quic-go UDP buffer sizes](https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes).
+2. Runs `sudo cloudflared service install` (skipped if `/etc/systemd/system/cloudflared.service` already exists), then `daemon-reload` + `enable` + `restart`. The target refuses to run if `/etc/cloudflared/config.yml` is missing — set up steps 1–5 first.
+
 **Two gotchas worth remembering:**
 
 - **`credentials-file:` must point at `/etc/cloudflared/...`**, not `~/.cloudflared/...`. The system service runs as root and reads from `/etc`. If you skip step 5 and only have the user-scope copy, the service starts but can't authenticate.
-- **Run `sudo cloudflared service install` after** the config + creds are in `/etc/cloudflared/`. The installer reads them at install time and bails out otherwise.
+- **Run step 6 after** the config + creds are in `/etc/cloudflared/`. The installer reads them at install time and bails out otherwise — same applies to `make install-cloudflared`.
 
 **If the origin is a rootless podman pod** (Option C above): set the ingress `service:` to `http://127.0.0.1:8000`, **not** `http://localhost:8000`. cloudflared runs as a system-scope service, hits the host loopback, and `localhost` resolves to `[::1]` first — pasta only forwards IPv4 so the tunnel returns 502s on every request. Same one-line cause as the secrets.env hostname gotcha in Option C.
 
